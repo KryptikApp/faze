@@ -32,11 +32,14 @@ const idealFaceBox: IBoundingBox = {
 
 export default function Scanner() {
   const webcamRef = useRef<Webcam>(null);
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const distRef = useRef<number>(0);
   const [distFromCamera, setDistFromCamera] = useState<number>(0);
   const [boundingBox, setBoundingBox] = useState<IBoundingBox | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isScreenSmall, setIsScreenSmall] = useState<boolean>(
+    window.innerWidth < 778
+  );
   const [targetFaceBox, setTargetFaceBox] =
     useState<IBoundingBox>(idealFaceBox);
 
@@ -132,7 +135,7 @@ export default function Scanner() {
         "2d"
       ) as CanvasRenderingContext2D;
       ctx.beginPath();
-      ctx.lineWidth = "4";
+      ctx.lineWidth = 2;
       ctx.strokeStyle = "green";
       const width = targetFaceBox.brX - idealFaceBox.tlX;
       const height = targetFaceBox.brY - idealFaceBox.tlY;
@@ -154,7 +157,12 @@ export default function Scanner() {
     }
     // Handler to call on window resize
     function handleResize() {
-      if (window.innerWidth < 778) {
+      if (window.innerWidth < 778 && !isScreenSmall) {
+        setIsScreenSmall(true);
+        initFaceAssist();
+      }
+      if (window.innerWidth > 777 && isScreenSmall) {
+        setIsScreenSmall(true);
         initFaceAssist();
       }
     }
