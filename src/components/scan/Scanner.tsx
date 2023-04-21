@@ -33,13 +33,12 @@ const idealFaceBox: IBoundingBox = {
 export default function Scanner() {
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRefFace = useRef<HTMLCanvasElement>(null);
   const distRef = useRef<number>(0);
   const [distFromCamera, setDistFromCamera] = useState<number>(0);
   const [boundingBox, setBoundingBox] = useState<IBoundingBox | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isScreenSmall, setIsScreenSmall] = useState<boolean>(
-    window.innerWidth < 778
-  );
+  const [isScreenSmall, setIsScreenSmall] = useState<boolean>(false);
   const [targetFaceBox, setTargetFaceBox] =
     useState<IBoundingBox>(idealFaceBox);
 
@@ -71,39 +70,26 @@ export default function Scanner() {
       webcamRef.current.video.width = videoWidth;
       webcamRef.current.video.height = videoHeight;
       const face = await net.estimateFaces({ input: video });
-      if (
-        face &&
-        face[0] &&
-        face[0].annotations &&
-        face[0].annotations.noseTip &&
-        face[0].annotations.noseTip[0] &&
-        face[0].boundingBox
-      ) {
-        const nose = face[0].annotations.noseTip[0][2];
+      if (face && face[0] && face[0].scaledMesh) {
+        const faceBox: any = face[0].boundingBox;
         const newBoundingBox: IBoundingBox = {
-          tlX: face[0].boundingBox.topLeft[0],
-          tlY: face[0].boundingBox.topLeft[1],
-          brX: face[0].boundingBox.bottomRight[0],
-          brY: face[0].boundingBox.bottomRight[1],
+          tlX: faceBox.topLeft[0],
+          tlY: faceBox.topLeft[1],
+          brX: faceBox.bottomRight[0],
+          brY: faceBox.bottomRight[1],
         };
-        // const width = newBoundingBox.brX - newBoundingBox.tlX;
-        // const height = newBoundingBox.brY - newBoundingBox.tlY;
-        // if (canvasRef.current) {
-        //   canvasRef.current.width = videoWidth;
-        //   canvasRef.current.height = videoHeight;
-        //   const ctx = canvasRef.current.getContext(
-        //     "2d"
-        //   ) as CanvasRenderingContext2D;
-        //   // requestAnimationFrame(() => {
-        //   //   ctx.beginPath();
-        //   //   ctx.lineWidth = "4";
-        //   //   ctx.strokeStyle = "red";
-        //   //   ctx.rect(newBoundingBox.tlX, newBoundingBox.tlY, width, height);
-        //   //   ctx.stroke();
-        //   // });
-        // }
+        const width = newBoundingBox.brX - newBoundingBox.tlX;
+        const height = newBoundingBox.brY - newBoundingBox.tlY;
+        if (canvasRefFace.current) {
+          const ctx = canvasRefFace.current.getContext(
+            "2d"
+          ) as CanvasRenderingContext2D;
+          requestAnimationFrame(() => {
+            ctx.clearRect(0, 0, videoWidth, videoHeight);
+            drawMesh(face, ctx);
+          });
+        }
         setBoundingBox(newBoundingBox);
-        setDistFromCamera(nose);
       }
 
       return face;
@@ -118,7 +104,8 @@ export default function Scanner() {
       webcamRef.current !== null &&
       webcamRef.current.video !== null &&
       webcamRef.current.video.readyState === 4 &&
-      canvasRef.current
+      canvasRef.current &&
+      canvasRefFace.current
     ) {
       setIsLoading(true);
       // Get Video Properties
@@ -126,24 +113,26 @@ export default function Scanner() {
       const videoWidth = video.offsetWidth;
       const videoHeight = video.offsetHeight;
       console.log(videoWidth, videoHeight);
+      console.log("UPDATEING CANVAS SIZE...");
       // Set video/canvas width
       webcamRef.current.video.width = videoWidth;
       webcamRef.current.video.height = videoHeight;
       canvasRef.current.width = videoWidth;
       canvasRef.current.height = videoHeight;
+      canvasRefFace.current.width = videoWidth;
+      canvasRefFace.current.height = videoHeight;
       const ctx = canvasRef.current.getContext(
         "2d"
       ) as CanvasRenderingContext2D;
       ctx.beginPath();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "green";
-      const width = targetFaceBox.brX - idealFaceBox.tlX;
-      const height = targetFaceBox.brY - idealFaceBox.tlY;
-      ctx.rect(
-        videoWidth / 4,
-        videoHeight / 4,
-        videoWidth / 2,
-        videoHeight / 2
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "white";
+      ctx.roundRect(
+        videoWidth / 3,
+        videoHeight / 6,
+        videoWidth / 2.5,
+        videoHeight / 1.7,
+        10
       );
       ctx.stroke();
       console.log("face assist initialized");
@@ -155,14 +144,20 @@ export default function Scanner() {
     if (window.navigator !== undefined) {
       initFaceDetection();
     }
+    setIsScreenSmall(window.innerWidth < 778);
     // Handler to call on window resize
     function handleResize() {
+      console.log("RESIZE");
+      console.log(window.innerWidth);
+      console.log(isScreenSmall);
       if (window.innerWidth < 778 && !isScreenSmall) {
+        console.log("A");
         setIsScreenSmall(true);
         initFaceAssist();
       }
       if (window.innerWidth > 777 && isScreenSmall) {
-        setIsScreenSmall(true);
+        console.log("B");
+        setIsScreenSmall(false);
         initFaceAssist();
       }
     }
@@ -175,48 +170,33 @@ export default function Scanner() {
   }, [webcamRef.current]);
 
   return (
-    <div className="bg-yellow-500">
+    <div className="absolute m-auto left-0 right-0 min-h-[480px] w-[640px]">
       <Webcam
         ref={webcamRef}
-        className={`rounded-xl ${isLoading && "invisible"} px-2`}
-        style={{
-          position: "absolute",
-          margin: "auto",
-          textAlign: "center",
-          top: 200,
-          left: 0,
-          right: 0,
-          zIndex: 9,
-        }}
+        className={`rounded-tl-xl rounded-tr-xl ${
+          isLoading && "invisible"
+        } absolute top-0`}
       />
       <canvas
         ref={canvasRef}
-        className={`rounded-xl ${isLoading && "invisible"} px-2`}
-        style={{
-          position: "absolute",
-          margin: "auto",
-          textAlign: "center",
-          top: 200,
-          left: 0,
-          right: 0,
-          zIndex: 9,
-        }}
+        className={`rounded-tl-xl rounded-tr-xl ${
+          isLoading && "invisible"
+        } absolute top-0`}
+      />
+      <canvas
+        ref={canvasRefFace}
+        className={`rounded-tl-xl rounded-tr-xl ${
+          isLoading && "invisible"
+        } absolute top-0`}
       />
       <div
         className={`${
           !isLoading && "hidden"
-        } bg-gray-500 w-[600px] h-[400px] rounded-xl max-w-xl animate-pulse px-2`}
-        style={{
-          position: "absolute",
-          margin: "auto",
-          textAlign: "center",
-          top: 205,
-          left: 0,
-          right: 0,
-          zIndex: 9,
-        }}
+        } absolute bg-gray-500 w-[640px] h-[480px] rounded-tl-xl rounded-tr-xl max-w-xl animate-pulse top-0`}
       ></div>
-      <p className="text-sky-400 px-2">{distFromCamera.toFixed(2)}</p>
+      <div className="absolute top-[480px] border rounded-br-xl rounded-bl-xl b w-[640px] py-2 px-2">
+        <p className="text-sky-400">Face Assist</p>
+      </div>
     </div>
   );
 }
