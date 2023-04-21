@@ -19,3 +19,16 @@ export const idealFaceBox: IBoundingBox = {
   brX: 500,
   brY: 400,
 };
+
+export interface AssistScore {
+  score: number;
+  msg: string;
+  color: string;
+}
+
+export const defaultAssistScore: AssistScore = {
+  score: 0,
+  msg: "No face detected",
+  // hex color code for white
+  color: "#FFFFFF",
+};
