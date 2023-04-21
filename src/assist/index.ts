@@ -22,19 +22,11 @@ export function assist(
   // negative if left of target, positive if right of target
   const leftXDist = faceBox.tlX - targetBox.tlX;
   // negative if above target, positive if below target
-  const topYDist = targetBox.tlY - faceBox.tlY;
+  const topYDist = faceBox.tlY - targetBox.tlY;
   // negative if right of target, positive if left of target
-  const rightXDist = faceBox.brX - targetBox.brX;
+  const rightXDist = targetBox.brX - faceBox.brX;
   // negative if below target, positive if above target
   const bottomYDist = targetBox.brY - faceBox.brY;
-  if (leftXDist > 0 && rightXDist > 0 && topYDist > 0 && bottomYDist > 0) {
-    return {
-      score: 100,
-      msg: "Perfect",
-      // hex color code for green
-      color: "#00FF00",
-    };
-  }
   // compute scores for each dimension
   const xScoreLeft = Math.max(0, 100 - (Math.abs(leftXDist) / width) * 100);
   const xScoreRight = Math.max(0, 100 - (Math.abs(rightXDist) / width) * 100);
@@ -75,6 +67,10 @@ export function assist(
     case yScoreBottom:
       msg = "Move down";
       break;
+  }
+  // if all dimensions are good, tell user to move closer
+  if (leftXDist > 0 && rightXDist > 0 && topYDist > 0 && bottomYDist > 0) {
+    msg = "Move closer";
   }
   // create custom shade between white and green
   // 0 is white, 100 is green
