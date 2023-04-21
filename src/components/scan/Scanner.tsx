@@ -68,17 +68,28 @@ export default function Scanner() {
         };
         // compute assist score
         handleFaceAssist(newBoundingBox);
-        // const width = newBoundingBox.brX - newBoundingBox.tlX;
-        // const height = newBoundingBox.brY - newBoundingBox.tlY;
-        // if (canvasRefFace.current) {
-        //   const ctx = canvasRefFace.current.getContext(
-        //     "2d"
-        //   ) as CanvasRenderingContext2D;
-        //   requestAnimationFrame(() => {
-        //     ctx.clearRect(0, 0, videoWidth, videoHeight);
-        //     drawMesh(face, ctx);
-        //   });
-        // }
+        const width = newBoundingBox.brX - newBoundingBox.tlX;
+        const height = newBoundingBox.brY - newBoundingBox.tlY;
+        if (canvasRefFace.current) {
+          const ctx = canvasRefFace.current.getContext(
+            "2d"
+          ) as CanvasRenderingContext2D;
+          requestAnimationFrame(() => {
+            ctx.clearRect(0, 0, videoWidth, videoHeight);
+            ctx.beginPath();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "white";
+            ctx.roundRect(
+              newBoundingBox.tlX,
+              newBoundingBox.tlY,
+              width,
+              height,
+              10
+            );
+            ctx.stroke();
+            // drawMesh(face, ctx);
+          });
+        }
         setBoundingBox(newBoundingBox);
       } else {
         handleFaceAssist(null);
