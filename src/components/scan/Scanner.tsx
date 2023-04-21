@@ -5,30 +5,15 @@ import * as face from "@tensorflow-models/face-landmarks-detection";
 import { MediaPipeFaceMesh } from "@tensorflow-models/face-landmarks-detection/dist/types";
 import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
-import dynamic from "next/dynamic";
 import { drawMesh } from "@/utils/drawMesh";
-
-/**
- * @interface IBoundingBox
- * @description Interface for the bounding box of a face
- * @property {number} tlX - The top left x coordinate of the bounding box
- * @property {number} tlY - The top left y coordinate of the bounding box
- * @property {number} brX - The bottom right x coordinate of the bounding box
- * @property {number} brY - The bottom right y coordinate of the bounding box
- */
-interface IBoundingBox {
-  tlX: number;
-  tlY: number;
-  brX: number;
-  brY: number;
-}
-
-const idealFaceBox: IBoundingBox = {
-  tlX: 200,
-  tlY: 100,
-  brX: 500,
-  brY: 400,
-};
+import {
+  AssistScore,
+  IBoundingBox,
+  defaultAssistScore,
+  idealFaceBox,
+} from "@/types/face";
+import { assist } from "@/assist";
+import ProgressBar from "../progress/ProgressBar";
 
 export default function Scanner() {
   const webcamRef = useRef<Webcam>(null);
@@ -39,6 +24,9 @@ export default function Scanner() {
   const [boundingBox, setBoundingBox] = useState<IBoundingBox | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isScreenSmall, setIsScreenSmall] = useState<boolean>(false);
+  // score indicating how well the user is positioned
+  const [assistScore, setAssistScore] =
+    useState<AssistScore>(defaultAssistScore);
   const [targetFaceBox, setTargetFaceBox] =
     useState<IBoundingBox>(idealFaceBox);
 
@@ -78,24 +66,53 @@ export default function Scanner() {
           brX: faceBox.bottomRight[0],
           brY: faceBox.bottomRight[1],
         };
-        const width = newBoundingBox.brX - newBoundingBox.tlX;
-        const height = newBoundingBox.brY - newBoundingBox.tlY;
-        if (canvasRefFace.current) {
-          const ctx = canvasRefFace.current.getContext(
-            "2d"
-          ) as CanvasRenderingContext2D;
-          requestAnimationFrame(() => {
-            ctx.clearRect(0, 0, videoWidth, videoHeight);
-            drawMesh(face, ctx);
-          });
-        }
+        // compute assist score
+        handleFaceAssist(newBoundingBox);
+        // const width = newBoundingBox.brX - newBoundingBox.tlX;
+        // const height = newBoundingBox.brY - newBoundingBox.tlY;
+        // if (canvasRefFace.current) {
+        //   const ctx = canvasRefFace.current.getContext(
+        //     "2d"
+        //   ) as CanvasRenderingContext2D;
+        //   requestAnimationFrame(() => {
+        //     ctx.clearRect(0, 0, videoWidth, videoHeight);
+        //     drawMesh(face, ctx);
+        //   });
+        // }
         setBoundingBox(newBoundingBox);
+      } else {
+        handleFaceAssist(null);
       }
 
       return face;
     } else {
       return null;
     }
+  }
+
+  /** Provide suggestions for user face position and orinetation. Suggestions are derived from the difference between the inferred face position and the target bounding box. */
+  function handleFaceAssist(currFaceBox: IBoundingBox | null) {
+    const newAssistScore: AssistScore = assist(targetFaceBox, currFaceBox);
+    setAssistScore(newAssistScore);
+    updateTargetBox(targetFaceBox, newAssistScore.color);
+  }
+
+  /** Updates target box dfimensions and color */
+  function updateTargetBox(newTargetBox: IBoundingBox, color: string) {
+    const ctx = canvasRef.current?.getContext("2d") || null;
+    if (!ctx) return;
+
+    ctx.beginPath();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = color;
+    ctx.roundRect(
+      newTargetBox.tlX,
+      newTargetBox.tlY,
+      newTargetBox.brX - newTargetBox.tlX,
+      newTargetBox.brY - newTargetBox.tlY,
+      10
+    );
+    ctx.stroke();
   }
 
   function initFaceAssist() {
@@ -124,18 +141,25 @@ export default function Scanner() {
       const ctx = canvasRef.current.getContext(
         "2d"
       ) as CanvasRenderingContext2D;
-      ctx.beginPath();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "white";
-      ctx.roundRect(
-        videoWidth / 3,
-        videoHeight / 6,
-        videoWidth / 2.5,
-        videoHeight / 1.7,
-        10
-      );
-      ctx.stroke();
+      // ctx.beginPath();
+      // ctx.lineWidth = 4;
+      // ctx.strokeStyle = "white";
+      // ctx.roundRect(
+      //   videoWidth / 3,
+      //   videoHeight / 6,
+      //   videoWidth / 2.5,
+      //   videoHeight / 1.7,
+      //   10
+      // );
+      // ctx.stroke();
       console.log("face assist initialized");
+      const newTargetFaceBox: IBoundingBox = {
+        tlX: videoWidth / 3,
+        tlY: videoHeight / 6,
+        brX: videoWidth / 3 + videoWidth / 2.5,
+        brY: videoHeight / 6 + videoHeight / 1.7,
+      };
+      setTargetFaceBox(newTargetFaceBox);
       setIsLoading(false);
     }
   }
@@ -175,27 +199,42 @@ export default function Scanner() {
         ref={webcamRef}
         className={`rounded-tl-xl rounded-tr-xl ${
           isLoading && "invisible"
-        } absolute top-0`}
+        } absolute top-0 z-2`}
       />
       <canvas
         ref={canvasRef}
         className={`rounded-tl-xl rounded-tr-xl ${
           isLoading && "invisible"
-        } absolute top-0`}
+        } absolute top-0 z-2`}
       />
       <canvas
         ref={canvasRefFace}
         className={`rounded-tl-xl rounded-tr-xl ${
           isLoading && "invisible"
-        } absolute top-0`}
+        } absolute top-0 z-2`}
       />
+      <div
+        className={`absolute w-[640px] h-[480px] rounded-tl-xl rounded-tr-xl top-0 border-r border-l border-t border-gray-400`}
+      ></div>
       <div
         className={`${
           !isLoading && "hidden"
-        } absolute bg-gray-500 w-[640px] h-[480px] rounded-tl-xl rounded-tr-xl max-w-xl animate-pulse top-0`}
+        } absolute bg-gray-500 w-[640px] h-[480px] rounded-tl-xl rounded-tr-xl animate-pulse top-0`}
       ></div>
-      <div className="absolute top-[480px] border rounded-br-xl rounded-bl-xl b w-[640px] py-2 px-2">
-        <p className="text-sky-400">Face Assist</p>
+      <div className="absolute top-[480px] border-r border-l border-b border-gray-400 rounded-br-xl rounded-bl-xl b w-[640px] pb-2 ">
+        <ProgressBar progressPercent={assistScore.score} />
+        <div className="px-2 min-h-[40px]">
+          {/* <p className="mt-2">
+          Your score:{" "}
+          <span
+            className="font-semibold"
+            style={{ color: `${assistScore.color}` }}
+          >
+            {assistScore.score.toFixed(2)}
+          </span>
+        </p> */}
+          <p className="mt-2 text-gray-500">{assistScore.msg}</p>
+        </div>
       </div>
     </div>
   );
