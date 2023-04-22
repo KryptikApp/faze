@@ -3,7 +3,7 @@ import "@tensorflow/tfjs-converter";
 import "@tensorflow/tfjs-backend-webgl";
 import * as face from "@tensorflow-models/face-landmarks-detection";
 import { MediaPipeFaceMesh } from "@tensorflow-models/face-landmarks-detection/dist/types";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { drawMesh } from "@/utils/drawMesh";
 import {
@@ -14,6 +14,12 @@ import {
 } from "@/types/face";
 import { assist } from "@/assist";
 import ProgressBar from "../progress/ProgressBar";
+import { LoadingOutlined, PoweroffOutlined } from "@ant-design/icons";
+
+interface ICamSize {
+  width: number;
+  height: number;
+}
 
 export default function Scanner() {
   const webcamRef = useRef<Webcam>(null);
@@ -22,13 +28,16 @@ export default function Scanner() {
   const distRef = useRef<number>(0);
   const [distFromCamera, setDistFromCamera] = useState<number>(0);
   const [boundingBox, setBoundingBox] = useState<IBoundingBox | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasLoaded, setHasLoaded] = useState<boolean>(false);
   const [isScreenSmall, setIsScreenSmall] = useState<boolean>(false);
+  const [camSize, setCamSize] = useState<ICamSize>({ width: 576, height: 432 });
+
   // score indicating how well the user is positioned
   const [assistScore, setAssistScore] =
     useState<AssistScore>(defaultAssistScore);
-  const [targetFaceBox, setTargetFaceBox] =
-    useState<IBoundingBox>(idealFaceBox);
+  const [targetFaceBox, setTargetFaceBox] = useState<IBoundingBox | null>(null);
 
   function updateDistFromCamera(rawVal: number) {
     setDistFromCamera(rawVal);
@@ -52,19 +61,20 @@ export default function Scanner() {
     ) {
       // Get Video Properties
       const video = webcamRef.current.video;
-      const videoWidth = webcamRef.current.video.videoWidth;
-      const videoHeight = webcamRef.current.video.videoHeight;
-      // Set video width
-      webcamRef.current.video.width = videoWidth;
-      webcamRef.current.video.height = videoHeight;
+      video.width = camSize.width;
+      video.height = camSize.height;
       const face = await net.estimateFaces({ input: video });
+      const xRatio = camSize.width / 640;
+      const yRatio = camSize.height / 480;
+      console.log(face);
       if (face && face[0] && face[0].scaledMesh) {
         const faceBox: any = face[0].boundingBox;
+        // adjust for camera size
         const newBoundingBox: IBoundingBox = {
-          tlX: faceBox.topLeft[0],
-          tlY: faceBox.topLeft[1],
-          brX: faceBox.bottomRight[0],
-          brY: faceBox.bottomRight[1],
+          tlX: faceBox.topLeft[0] * xRatio,
+          tlY: faceBox.topLeft[1] * yRatio,
+          brX: faceBox.bottomRight[0] * xRatio,
+          brY: faceBox.bottomRight[1] * yRatio,
         };
         // compute assist score
         handleFaceAssist(newBoundingBox);
@@ -75,7 +85,7 @@ export default function Scanner() {
             "2d"
           ) as CanvasRenderingContext2D;
           requestAnimationFrame(() => {
-            ctx.clearRect(0, 0, videoWidth, videoHeight);
+            ctx.clearRect(0, 0, camSize.width, camSize.height);
             ctx.beginPath();
             ctx.lineWidth = 4;
             ctx.strokeStyle = "white";
@@ -92,11 +102,14 @@ export default function Scanner() {
         }
         setBoundingBox(newBoundingBox);
       } else {
+        // TODO: clear canvas
         handleFaceAssist(null);
       }
-
+      setHasLoaded(true);
+      setIsLoading(false);
       return face;
     } else {
+      setHasLoaded(false);
       return null;
     }
   }
@@ -108,11 +121,29 @@ export default function Scanner() {
     updateTargetBox(targetFaceBox, newAssistScore.color);
   }
 
+  /** Activates camera.*/
+  function handleToggleCamera() {
+    // don't do anything if loading
+    if (isLoading) return;
+    setAssistScore(defaultAssistScore);
+    setBoundingBox(null);
+    const newTargetBox: IBoundingBox = {
+      tlX: camSize.width / 4,
+      tlY: camSize.height / 7,
+      brX: (3 * camSize.width) / 4,
+      brY: (6 * camSize.height) / 7,
+    };
+    setTargetFaceBox(newTargetBox);
+    // loading state is true if camera is pulling up
+    if (!isCameraActive) setIsLoading(true);
+    setIsCameraActive(!isCameraActive);
+  }
+
   /** Updates target box dfimensions and color */
-  function updateTargetBox(newTargetBox: IBoundingBox, color: string) {
+  function updateTargetBox(newTargetBox: IBoundingBox | null, color: string) {
+    if (!newTargetBox) return;
     const ctx = canvasRef.current?.getContext("2d") || null;
     if (!ctx) return;
-
     ctx.beginPath();
     ctx.lineWidth = 4;
     ctx.strokeStyle = color;
@@ -126,74 +157,36 @@ export default function Scanner() {
     ctx.stroke();
   }
 
-  function initFaceAssist() {
-    if (
-      typeof webcamRef.current !== "undefined" &&
-      webcamRef.current !== null &&
-      webcamRef.current.video !== null &&
-      webcamRef.current.video.readyState === 4 &&
-      canvasRef.current &&
-      canvasRefFace.current
-    ) {
-      setIsLoading(true);
-      // Get Video Properties
-      const video = webcamRef.current.video;
-      const videoWidth = video.offsetWidth;
-      const videoHeight = video.offsetHeight;
-      console.log(videoWidth, videoHeight);
-      console.log("UPDATEING CANVAS SIZE...");
-      // Set video/canvas width
-      webcamRef.current.video.width = videoWidth;
-      webcamRef.current.video.height = videoHeight;
-      canvasRef.current.width = videoWidth;
-      canvasRef.current.height = videoHeight;
-      canvasRefFace.current.width = videoWidth;
-      canvasRefFace.current.height = videoHeight;
-      const ctx = canvasRef.current.getContext(
-        "2d"
-      ) as CanvasRenderingContext2D;
-      // ctx.beginPath();
-      // ctx.lineWidth = 4;
-      // ctx.strokeStyle = "white";
-      // ctx.roundRect(
-      //   videoWidth / 3,
-      //   videoHeight / 6,
-      //   videoWidth / 2.5,
-      //   videoHeight / 1.7,
-      //   10
-      // );
-      // ctx.stroke();
-      console.log("face assist initialized");
+  function updateCamSize(newWidth: number, newHeight: number) {
+    console.log("Initializing cam size...");
+    if (canvasRef.current && canvasRefFace.current) {
+      canvasRefFace.current.width = newWidth;
+      canvasRefFace.current.height = newHeight;
+      canvasRef.current.width = newWidth;
+      canvasRef.current.height = newHeight;
       const newTargetFaceBox: IBoundingBox = {
-        tlX: videoWidth / 3,
-        tlY: videoHeight / 6,
-        brX: videoWidth / 3 + videoWidth / 2.5,
-        brY: videoHeight / 6 + videoHeight / 1.7,
+        tlX: newWidth / 4,
+        tlY: newHeight / 7,
+        brX: (3 * newWidth) / 4,
+        brY: (6 * newHeight) / 7,
       };
+      setCamSize({ width: newWidth, height: newHeight });
       setTargetFaceBox(newTargetFaceBox);
-      setIsLoading(false);
+      console.log("Cam size updated.");
     }
   }
 
   useEffect(() => {
-    if (window.navigator !== undefined) {
-      initFaceDetection();
-    }
     setIsScreenSmall(window.innerWidth < 778);
     // Handler to call on window resize
     function handleResize() {
-      console.log("RESIZE");
-      console.log(window.innerWidth);
-      console.log(isScreenSmall);
+      // small screen
       if (window.innerWidth < 778 && !isScreenSmall) {
-        console.log("A");
         setIsScreenSmall(true);
-        initFaceAssist();
       }
+      // big screen
       if (window.innerWidth > 777 && isScreenSmall) {
-        console.log("B");
         setIsScreenSmall(false);
-        initFaceAssist();
       }
     }
     // Add event listener
@@ -201,50 +194,109 @@ export default function Scanner() {
   }, []);
 
   useEffect(() => {
-    initFaceAssist();
-  }, [webcamRef.current]);
+    console.log("Screen size changed.");
+    if (isScreenSmall) {
+      updateCamSize(384, 288);
+    } else {
+      updateCamSize(576, 432);
+    }
+  }, [isScreenSmall]);
+
+  useEffect(() => {
+    if (canvasRefFace.current !== null && canvasRef.current !== null) {
+      const faceCtx = canvasRefFace.current.getContext(
+        "2d"
+      ) as CanvasRenderingContext2D;
+      const canvasCtx = canvasRef.current.getContext(
+        "2d"
+      ) as CanvasRenderingContext2D;
+      // faceCtx.clearRect(0, 0, 1000, 1000);
+      // canvasCtx.clearRect(0, 0, 1000, 1000);
+      canvasCtx.clearRect(0, 0, camSize.width, camSize.height);
+      faceCtx.clearRect(0, 0, camSize.width, camSize.height);
+    }
+    if (!hasLoaded && isCameraActive) {
+      setIsLoading(true);
+      initFaceDetection();
+    } else {
+      setIsLoading(false);
+    }
+    console.log("Web cam ref:");
+    console.log(webcamRef.current);
+  }, [isCameraActive]);
 
   return (
-    <div className="absolute m-auto left-0 right-0 min-h-[480px] w-[640px]">
-      <Webcam
-        ref={webcamRef}
-        className={`rounded-tl-xl rounded-tr-xl ${
-          isLoading && "invisible"
-        } absolute top-0 z-2`}
-      />
+    <div className="absolute m-auto left-0 right-0 min-h-[480px] max-w-sm md:max-w-xl w-[100%]">
+      <div
+        className={`${
+          (!isCameraActive || isLoading) && "hidden"
+        } absolute t-0 l-0 rounded-xl text-white px-2 pt-1 pb-2 z-[100] text-2xl w-fit hover:scale-110 transition-transform hover:cursor-pointer ml-2 mt-2 bg-gray-100/20`}
+        onClick={handleToggleCamera}
+      >
+        <PoweroffOutlined size={20} className="" />
+      </div>
+      {/* camera */}
+      {isCameraActive && (
+        <div>
+          <Webcam
+            ref={webcamRef}
+            className={`rounded-tl-xl rounded-tr-xl z-10 max-w-sm md:max-w-xl border-r border-l border-t border-gray-400`}
+            style={{
+              width: camSize.width,
+              height: camSize.height,
+            }}
+          />
+        </div>
+      )}
+      {/* activate camera button */}
+      <div
+        className={`${
+          isCameraActive && "hidden"
+        } rounded-tl-xl rounded-tr-xl border border-t border-r border-l border-gray-400 z-[100] ${
+          isLoading && "bg-gray-500 animate-pulse"
+        }`}
+        style={{
+          width: camSize.width,
+          height: camSize.height,
+          paddingTop: camSize.height / 2 - 50,
+        }}
+      >
+        <div
+          className="hover:cursor-pointer text-center font-semibold text-gray-400 flex flex-col space-y-2 w-fit mx-auto hover:text-sky-400 transition-color z-[100]"
+          onClick={handleToggleCamera}
+        >
+          {isLoading && <LoadingOutlined size={14} className="animate-spin" />}
+          <p className="text-3xl">Activate Camera</p>
+          <PoweroffOutlined size={14} className="" />
+        </div>
+      </div>
+      {/* face canvases */}
       <canvas
         ref={canvasRef}
         className={`rounded-tl-xl rounded-tr-xl ${
-          isLoading && "invisible"
-        } absolute top-0 z-2`}
+          !isCameraActive && "hidden"
+        } absolute top-0`}
       />
       <canvas
         ref={canvasRefFace}
         className={`rounded-tl-xl rounded-tr-xl ${
-          isLoading && "invisible"
-        } absolute top-0 z-2`}
+          !isCameraActive && "hidden"
+        } absolute top-0`}
       />
+      {/* face assist */}
       <div
-        className={`absolute w-[640px] h-[480px] rounded-tl-xl rounded-tr-xl top-0 border-r border-l border-t border-gray-400`}
-      ></div>
-      <div
-        className={`${
-          !isLoading && "hidden"
-        } absolute bg-gray-500 w-[640px] h-[480px] rounded-tl-xl rounded-tr-xl animate-pulse top-0`}
-      ></div>
-      <div className="absolute top-[480px] border-r border-l border-b border-gray-400 rounded-br-xl rounded-bl-xl b w-[640px] pb-2 ">
+        className=" border-r border-l border-b border-gray-400 rounded-br-xl rounded-bl-xl pb-2"
+        style={{
+          width: camSize.width,
+        }}
+      >
         <ProgressBar progressPercent={assistScore.score} />
-        <div className="px-2 min-h-[40px]">
-          {/* <p className="mt-2">
-          Your score:{" "}
-          <span
-            className="font-semibold"
-            style={{ color: `${assistScore.color}` }}
-          >
-            {assistScore.score.toFixed(2)}
-          </span>
-        </p> */}
-          <p className="mt-2 text-gray-500">{assistScore.msg}</p>
+        <div className="px-2 min-h-[70px]">
+          {isCameraActive && (
+            <p className="mt-2 text-gray-200 font-bold text-center text-3xl">
+              {assistScore.msg}
+            </p>
+          )}
         </div>
       </div>
     </div>
