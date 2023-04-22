@@ -25,16 +25,18 @@ const ProgressBar: NextPage<Props> = (props) => {
     progressval.set(progressPercent);
   }, [progressPercent]);
   return (
-    <div className="w-[100%] bg-gray-500">
+    <div className="w-[100%] border-t border-b">
       <motion.div
         id="progressBar"
-        className="bg-gradient-to-r from-white to-green-600 h-10 text-gray-700 pl-[2%] py-2"
+        className="bg-gradient-to-r from-white to-green-600 h-10 text-gray-700 py-2"
         style={{
           width: width,
           backgroundColor: "#fff",
         }}
       >
-        {progressPercent > 5 ? `${progressPercent.toFixed(2)}%` : ""}
+        <span className="ml-[2%]">
+          {progressPercent > 5 ? `${progressPercent.toFixed(2)}%` : ""}
+        </span>
       </motion.div>
     </div>
   );
