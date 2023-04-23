@@ -3,21 +3,21 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import Image from "next/image";
 import Menu, { MenuItem } from "../menu/menu";
-import { useEffect } from "react";
 import toast from "react-hot-toast";
 
 const NavbarProduction: NextPage = () => {
   const router = useRouter();
 
   function handleLogoTapped() {
-    toast("Hey there!");
+    // pass for now
+    // toast("Hey there!");
   }
 
   return (
     <Menu>
       <MenuItem>
-        <Link href="../">
-          <span>About</span>
+        <Link href="../privacy">
+          <span>Privacy</span>
         </Link>
       </MenuItem>
       <MenuItem>
