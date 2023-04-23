@@ -221,8 +221,6 @@ export default function Scanner() {
     } else {
       setIsLoading(false);
     }
-    console.log("Web cam ref:");
-    console.log(webcamRef.current);
   }, [isCameraActive]);
 
   return (
