@@ -2,23 +2,41 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { Toaster } from "react-hot-toast";
 import Navbar from "./navbars/Navbar";
+import { Inter } from "next/font/google";
+import { useEffect, useState } from "react";
+
+const inter = Inter({ subsets: ["latin"] });
 
 // TODO: Update to support dynamic headers
 export default function Layout({ children }: any) {
   const router = useRouter();
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    if (window && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      console.log("Dark mode detected");
+      setIsDark(true);
+    }
+  }, []);
+
   return (
-    <div className={`min-h-screen pb-20 bg-white dark:bg-black px-4`}>
+    <div className={`min-h-screen pb-20 ${isDark && "dark"} px-4`}>
       <Head>
-        <title>No Parking Players</title>
+        <title>Faze ID</title>
         <meta
           name="description"
-          content="The No Parking Players are Carnegie Mellon University's premier improv comedy troupe. We perform monthly shows at the University Center and host improv workshops and classes for students of all skill levels."
+          content="Privacy preserving face authentication on the browser."
         />
-        <link rel="icon" href="/brand/logoLight.webp" />
+        <link rel="icon" href="/fazeLogo.png" />
       </Head>
-
+      {/* add custom font */}
+      <style jsx global>{`
+        html {
+          font-family: ${inter.style.fontFamily};
+        }
+      `}</style>
       <main className={``}>
-        <Toaster />
+        <Toaster position="top-left" />
         <Navbar />
         <div className="h-20" />
         {children}
