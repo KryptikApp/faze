@@ -1,34 +1,42 @@
 import { NextPage } from "next";
 import Link from "next/link";
 import { useRouter } from "next/router";
-
+import Image from "next/image";
 import Menu, { MenuItem } from "../menu/menu";
+import { useEffect } from "react";
+import toast from "react-hot-toast";
 
 const NavbarProduction: NextPage = () => {
   const router = useRouter();
 
+  function handleLogoTapped() {
+    toast("Hey there!");
+  }
+
   return (
     <Menu>
       <MenuItem>
-        <Link href="../about">
-          <span
-            className={`p-2 lg:px-4 md:mx-2 text-gray-400 rounded hover:bg-gray-200 hover:cursor-pointer hover:text-gray-700 dark:hover:bg-gray-300 dark:hover:text-black transition-colors duration-300 ${
-              router.pathname == "/about" ? "font-bold" : ""
-            } `}
-          >
-            About
-          </span>
+        <Link href="../">
+          <span>About</span>
         </Link>
       </MenuItem>
       <MenuItem>
-        <Link href="../members">
-          <span
-            className={`p-2 lg:px-4 md:mx-2 text-gray-400 rounded hover:bg-gray-200 hover:cursor-pointer hover:text-gray-700 dark:hover:bg-gray-300 dark:hover:text-black transition-colors duration-300 ${
-              router.pathname == "/explore" ? "font-bold" : ""
-            }`}
-          >
-            Test
-          </span>
+        <Link href="/" onClick={handleLogoTapped}>
+          <Image
+            width={40}
+            height={40}
+            src="/fazeLogo.png"
+            alt={"Face mesh."}
+          />
+        </Link>
+      </MenuItem>
+      <MenuItem>
+        <Link
+          href="https://github.com/KryptikApp/faze"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>Code</span>
         </Link>
       </MenuItem>
     </Menu>

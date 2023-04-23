@@ -17,11 +17,6 @@ const Menu: NextPage<Props> = (props) => {
 
   const { children } = { ...props };
 
-  // change style based on boolean
-  const menuWrapperClassName = isMenuMobile
-    ? "flex flex-col md:flex-row md:ml-auto mt-3 md:mt-0 min-h-[80vh] rounded-lg bg-[#F2FBFE] z-10 border-gray-500 border bg-gray-50 py-4 pl-4 dark:bg-black md:min-h-0 text-2xl space-y-2"
-    : "hidden text-xl md:flex flex-col md:flex-row md:ml-auto mt-3 md:mt-0";
-
   useEffect(() => {
     // Handler to call on window resize
     function handleResize() {
@@ -43,66 +38,10 @@ const Menu: NextPage<Props> = (props) => {
 
   return (
     <nav
-      className={`py-2 md:py-4 mb-4 -mx-4 md:mx-0 px-2 fixed z-20 top-0 w-full ${
-        !isMenuMobile && "bg-white/70 dark:bg-black/70"
-      } ${isMenuMobile && "bg-white dark:bg-black"}`}
+      className={`fixed top-0 right-0 left-0 mx-auto mt-4 md:mt-6 p-2 w-fit rounded-full border bg-gray-100/60 dark:bg-gray-900/60 hover:border-green-700 transition-color duration-200`}
     >
-      <div className="md:px-4 mx-auto md:flex md:items-center">
-        <div className="flex justify-between items-center hover:cursor-pointer">
-          <div onClick={() => setMenuMobile(false)}>
-            <Link href="/">
-              <span className="font-extrabold text-3xl text-gray-600 dark:text-gray-300 hover:dark:text-white hover:text-black transition-colors duration-1500">
-                FAZE
-              </span>
-            </Link>
-          </div>
-          <button
-            id="nav-icon"
-            onClick={() => setMenuMobile(!isMenuMobile)}
-            type="button"
-            className={`inline-flex ${
-              isMenuMobile && "open"
-            } items-center mt-2 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:hover:bg-gray-700 dark:focus:ring-gray-600`}
-            aria-controls="mobile-menu"
-            aria-expanded="false"
-          >
-            <span className="bg-gray-500 dark:bg-gray-400"></span>
-            <span className="bg-gray-500 dark:bg-gray-400"></span>
-            <span className="bg-gray-500 dark:bg-gray-400"></span>
-          </button>
-        </div>
-        <AnimatePresence>
-          <motion.div
-            id="menu"
-            className={menuWrapperClassName}
-            onClick={() => setMenuMobile(false)}
-            animate={isMenuMobile || !isSmallScreen ? "open" : "closed"}
-            variants={{
-              closed: {
-                scale: 0,
-                opacity: 0,
-                transition: {
-                  type: "spring",
-                  duration: 5,
-                  delayChildren: 0.2,
-                  staggerChildren: 0.05,
-                },
-              },
-              open: {
-                scale: 1,
-                opacity: 1,
-                transition: {
-                  type: "spring",
-                  duration: 0.4,
-                  delayChildren: 0.2,
-                  staggerChildren: 0.05,
-                },
-              },
-            }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+      <div className="flex flex-row space-x-6 items-center px-6">
+        {children}
       </div>
     </nav>
   );
@@ -117,22 +56,9 @@ type MenuItemProps = {
 export function MenuItem(props: MenuItemProps) {
   const { children } = { ...props };
   return (
-    <motion.div
-      variants={{
-        closed: { x: -200, opacity: 0 },
-        open: {
-          x: 0,
-          opacity: 100,
-          transition: {
-            type: "spring",
-            duration: 0.4,
-            delayChildren: 0.2,
-            staggerChildren: 0.05,
-          },
-        },
-      }}
-    >
+    <div className="hover:cursor-pointer text-xl hover:text-green-400 transition-color duration-300">
+      {" "}
       {children}
-    </motion.div>
+    </div>
   );
 }
