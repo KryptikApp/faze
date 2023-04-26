@@ -11,7 +11,7 @@ import {
 
 const p1PosLeft: number = 33;
 const p1PosRight: number = 362;
-const p2PosLeft: number = 164;
+const p2PosLeft: number = 160;
 const p2PosRight: number = 384;
 const p3PosLeft: number = 157;
 const p3PosRight: number = 387;
@@ -19,7 +19,7 @@ const p4PosLeft: number = 133;
 const p4PosRight: number = 263;
 const p5PosLeft: number = 154;
 const p5PosRight: number = 373;
-const p6PosLeft: number = 163;
+const p6PosLeft: number = 144;
 const p6PosRight: number = 381;
 
 type EyeSide = "left" | "right";
@@ -74,8 +74,6 @@ export class Eye {
     const midPointBottom = calculateMidpoint(this.p5, this.p6);
     const verticalDistance = calculateDistance(midPointTop, midPointBottom);
     const horizontalDistance = calculateDistance(this.p1, this.p4);
-    console.log("Horizontal Distance: ", horizontalDistance);
-    console.log("Vertical Distance: ", verticalDistance);
     return verticalDistance / horizontalDistance;
   }
 
@@ -88,8 +86,8 @@ export class Eye {
 
 export const EARThreshold = 0.2;
 export function computeCombinedEAR(leftEye: Eye, rightEye: Eye) {
-  return rightEye.getEAR();
-  //   return (leftEye.getEAR() + rightEye.getEAR()) / 2;
+  //   return rightEye.getEAR();
+  return (leftEye.getEAR() + rightEye.getEAR()) / 2;
 }
 
 /**
