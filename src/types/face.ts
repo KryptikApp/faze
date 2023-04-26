@@ -32,3 +32,10 @@ export const defaultAssistScore: AssistScore = {
   // hex color code for white
   color: "#FFFFFF",
 };
+
+export interface ILandmark {
+  x: number;
+  y: number;
+  z: number;
+  label?: string;
+}
