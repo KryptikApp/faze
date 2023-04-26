@@ -15,6 +15,12 @@ import {
 import { assist } from "@/assist";
 import ProgressBar from "../progress/ProgressBar";
 import { LoadingOutlined, PoweroffOutlined } from "@ant-design/icons";
+import {
+  Eye,
+  IBlink,
+  belowEARThreshold,
+  computeCombinedEAR,
+} from "@/types/eye";
 
 interface ICamSize {
   width: number;
@@ -33,6 +39,12 @@ export default function Scanner() {
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
   const [isScreenSmall, setIsScreenSmall] = useState<boolean>(false);
   const [camSize, setCamSize] = useState<ICamSize>({ width: 576, height: 432 });
+  const [blinkCount, setBlinkCount] = useState<number>(0);
+  const [historicalBlinks, setHistoricalBlinks] = useState<IBlink[]>([]);
+  // eye aspect ratio. 1 corresponds to open eye, 0 to closed eye
+  // computed across both eyes
+  const [lastEAR, setLastEAR] = useState<number>(1);
+  const [newEAR, setNewEar] = useState<number>(1);
 
   // score indicating how well the user is positioned
   const [assistScore, setAssistScore] =
@@ -66,7 +78,6 @@ export default function Scanner() {
       const face = await net.estimateFaces({ input: video });
       const xRatio = camSize.width / 640;
       const yRatio = camSize.height / 480;
-      console.log(face);
       if (face && face[0] && face[0].scaledMesh) {
         const faceBox: any = face[0].boundingBox;
         // adjust for camera size
@@ -100,6 +111,8 @@ export default function Scanner() {
             // drawMesh(face, ctx);
           });
         }
+        // run eye detection
+        handleBlinkDetection(face[0].mesh, lastEAR);
         setBoundingBox(newBoundingBox);
       } else {
         // TODO: clear canvas
@@ -119,6 +132,18 @@ export default function Scanner() {
     const newAssistScore: AssistScore = assist(targetFaceBox, currFaceBox);
     setAssistScore(newAssistScore);
     updateTargetBox(targetFaceBox, newAssistScore.color);
+  }
+
+  function handleBlinkDetection(landmarks: any, lastEARVal: number) {
+    try {
+      const leftEye = new Eye(landmarks, "left");
+      const rightEye = new Eye(landmarks, "right");
+      const newEAR: number = computeCombinedEAR(leftEye, rightEye);
+      setNewEar(newEAR);
+    } catch (e) {
+      console.warn("Unable to run eye detection");
+      console.error(e);
+    }
   }
 
   /** Activates camera.*/
@@ -192,6 +217,22 @@ export default function Scanner() {
     // Add event listener
     window.addEventListener("resize", handleResize);
   }, []);
+
+  // TODO: updateso we don't have to relay on useEffect hook
+  useEffect(() => {
+    const isBlink = belowEARThreshold(newEAR);
+    const wasLastBlink = belowEARThreshold(lastEAR);
+    if (isBlink && !wasLastBlink) {
+      setBlinkCount(blinkCount + 1);
+      const newBlink: IBlink = {
+        timestamp: Date.now(),
+        EAR: newEAR,
+      };
+      setHistoricalBlinks([...historicalBlinks, newBlink]);
+    }
+    // update lastEAR regardless of whether blink was detected
+    setLastEAR(newEAR);
+  }, [newEAR]);
 
   useEffect(() => {
     console.log("Screen size changed.");
@@ -291,9 +332,14 @@ export default function Scanner() {
         <ProgressBar progressPercent={assistScore.score} />
         <div className="px-2 min-h-[70px]">
           {isCameraActive && (
-            <p className="mt-2 text-gray-200 font-bold text-center text-3xl">
-              {assistScore.msg}
-            </p>
+            <div className="mt-2 flex flex-col space-y-2">
+              <p className="text-gray-700 dark:text-gray-200 font-bold text-center text-3xl">
+                {assistScore.msg}
+              </p>
+              <p className="text-gray-700 dark:text-gray-200 font-semibold text-center text-xl">
+                {blinkCount} blinks
+              </p>
+            </div>
           )}
         </div>
       </div>
