@@ -84,7 +84,7 @@ export class Eye {
   updateLandmarks(landmarks: Coord3D[]) {}
 }
 
-export const EARThreshold = 0.2;
+export const EARThreshold = 0.14;
 export function computeCombinedEAR(leftEye: Eye, rightEye: Eye) {
   //   return rightEye.getEAR();
   return (leftEye.getEAR() + rightEye.getEAR()) / 2;
