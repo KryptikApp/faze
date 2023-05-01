@@ -74,15 +74,32 @@ export default function Scanner() {
   const [videoBrightness, setVideoBrightness] = useState<number>(0);
   const [isVideoDark, setIsVideoDark] = useState<boolean>(false);
   const [isNameAvailable, setIsNameAvailable] = useState<boolean>(false);
-  const [isUserRegistered, setIsUserRegistered] = useState<boolean>(false);
+  const [isUserRegistered, setIsUserRegistered] = useState<boolean>(true);
   const [showBlinks, setShowBlinks] = useState<boolean>(false);
   const [historicalScans, setHistoricalScans] = useState<IScan[]>([]);
+  const [humanityVerified, setHumanityVerified] = useState<boolean>(false);
+  const [challengesPassed, setChallengesPassed] = useState<number>(0);
   const [isRequestVerification, setIsRequestVerification] =
     useState<boolean>(false);
-  const desiredScansReg = 5;
+  const desiredScansReg = 10;
   const desiredScansQuery = 1;
+  const [challengeInterval, setChallengeInterval] = useState<number>(3000);
+  const [challengeTime, setChallengeTime] = useState<number>(0);
+  const [showChallenge, setShowChallenge] = useState<boolean>(false);
 
   const router = useRouter();
+
+  useInterval(() => {
+    if (humanityVerified) return;
+    if (showChallenge) {
+      setShowChallenge(false);
+      setChallengeInterval(500);
+      return;
+    }
+    setChallengeInterval(3000);
+    setChallengeTime(Date.now());
+    setShowChallenge(true);
+  }, challengeInterval);
 
   // score indicating how well the user is positioned
   const [assistScore, setAssistScore] =
@@ -126,6 +143,9 @@ export default function Scanner() {
     if (!isRequestVerification) return;
     setIsLoading(true);
     let approved = false;
+    if (!humanityVerified) {
+      toast.error("Still verifying humanity.");
+    }
     if (!isUserRegistered) {
       console.log("registering user");
       approved = await registerUser(name, historicalScans);
@@ -164,11 +184,11 @@ export default function Scanner() {
       "Video brightness: ",
       newBrightness,
       "is dark: ",
-      newBrightness < 100 ? "yes" : "no"
+      newBrightness < 70 ? "yes" : "no"
     );
     setVideoBrightness(newBrightness);
     setIsVideoDark(newBrightness < 100);
-  }, 10000);
+  }, 2000);
 
   async function detect(net: MediaPipeFaceMesh | null) {
     if (!net) return;
@@ -251,6 +271,25 @@ export default function Scanner() {
     }
   }
 
+  function handleVerifyHumanity(newBlinks: IBlink[]) {
+    if (humanityVerified) return;
+    // make sure blink was within one second of request
+    // const blinkTime = lastBlink.timestamp;
+    // const timeDiff = blinkTime - challengeTime;
+    // if (timeDiff < 5000) {
+    //   const newCount = challengesPassed + 1;
+    //   setChallengesPassed(newCount);
+    //   if (newCount >= 1) {
+    //     setHumanityVerified(true);
+    //     setChallengesPassed(0);
+    //     toast("Check passed.");
+    //   }
+    // }
+    // return;
+    if (newBlinks.length < 1) return;
+    setHumanityVerified(true);
+  }
+
   /** Extract face encodings */
   async function handleRecognition(
     landmarks: any | null,
@@ -258,6 +297,7 @@ export default function Scanner() {
   ) {
     if (!landmarks) return;
     if (!pca) return;
+    if (!humanityVerified) return;
     // don't scan if video is dark
     if (isVideoDark) return;
     const desiredScans = isUserRegistered ? desiredScansQuery : desiredScansReg;
@@ -317,6 +357,8 @@ export default function Scanner() {
   }
 
   function handleStartOver() {
+    setHumanityVerified(false);
+    setChallengesPassed(0);
     setLogInProgress(LoginProgress.name);
     setIsRequestVerification(false);
     setShowBlinks(false);
@@ -445,7 +487,10 @@ export default function Scanner() {
         timestamp: Date.now(),
         EAR: newEAR,
       };
-      setHistoricalBlinks([...historicalBlinks, newBlink]);
+
+      const newHistoricalBlinks = [...historicalBlinks, newBlink];
+      handleVerifyHumanity(newHistoricalBlinks);
+      setHistoricalBlinks(newHistoricalBlinks);
       // get last three blinks
       const lastThreeBlinks = historicalBlinks.slice(-3);
       // check if last three blinks were within 3 seconds of each other
@@ -666,6 +711,7 @@ export default function Scanner() {
                       ? "Verifying..."
                       : assistScore.msg}
                   </p>
+
                   {showBlinks && (
                     <p className="text-gray-700 dark:text-gray-200 font-semibold text-center text-xl">
                       {blinkCount} blinks
@@ -693,7 +739,7 @@ export default function Scanner() {
               </div>
               <Link
                 href="../profile"
-                className="text-xl hover:scale-105 transition-scale"
+                className="text-xl hover:scale-105 transition-scale hover:text-green-400"
               >
                 View Profile
               </Link>
@@ -717,7 +763,7 @@ export default function Scanner() {
               </div>
               <Link
                 href="../profile"
-                className="text-xl hover:scale-105 transition-scale"
+                className="text-xl hover:scale-105 transition-scale hover:text-green-400"
               >
                 View Profile
               </Link>
