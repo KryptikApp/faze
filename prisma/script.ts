@@ -42,11 +42,11 @@ export async function createUser(userName: string): Promise<User> {
 }
 
 // delete user... will delete all data associated with user
-export async function deleteUser(userName: string): Promise<User | null> {
+export async function deleteUserById(id: string): Promise<User | null> {
   try {
     const user = await prisma.user.delete({
       where: {
-        username: userName,
+        id: id,
       },
     });
     return user;
@@ -93,7 +93,7 @@ export async function deleteAllFaceEncodings(id: string): Promise<void> {
 }
 
 // get all face encodings for a user
-export async function getAllFaceEncodings(
+export async function getAllUserFaceEncodings(
   id: string,
   registered?: boolean
 ): Promise<FaceEncoding[]> {
@@ -120,6 +120,22 @@ export async function getAllFaceEncodings(
     });
     return encodings;
   }
+}
+
+export type EncodingsSet = (FaceEncoding & { user: User })[];
+export async function getAllFaceEncodings(
+  registered: boolean = true
+): Promise<EncodingsSet> {
+  const encodings: (FaceEncoding & { user: User })[] =
+    await prisma.faceEncoding.findMany({
+      where: {
+        registered: registered,
+      },
+      include: {
+        user: true,
+      },
+    });
+  return encodings;
 }
 
 // check if user has registered face encodings
