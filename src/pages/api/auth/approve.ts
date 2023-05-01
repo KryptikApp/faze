@@ -38,11 +38,11 @@ export default async function handler(
       return res.status(400).json({ msg: "Unable to find user" });
     }
     // get registered face encodings
-    const dbFaceEncodings = await getAllFaceEncodings(user.id, true);
-    const registeredEncodings = dbFaceEncodings.map((e) => e.encoding);
+    const dbFaceEncodings = await getAllFaceEncodings(true);
     const isValid: boolean = await validateEncoding(
       encoding,
-      registeredEncodings
+      user.id,
+      dbFaceEncodings
     );
     if (!isValid) {
       return res
