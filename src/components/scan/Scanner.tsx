@@ -548,229 +548,242 @@ export default function Scanner() {
           : "h-fit"
       } max-w-sm md:max-w-xl border border-gray-400 rounded-xl`}
     >
-      {/* camera poweroff toggle */}
-      <div
-        className={`${
-          (!isCameraActive || isLoading) && "hidden"
-        } absolute t-0 l-0 rounded-xl text-white px-2 pt-1 pb-2 z-[100] text-2xl w-fit hover:scale-110 transition-transform hover:cursor-pointer ml-2 mt-2 bg-gray-100/20`}
-        onClick={handleStartOver}
-      >
-        <PoweroffOutlined size={20} className="" />
-      </div>
-      {/* username page */}
-      <AnimatePresence>
-        {loginProgress == LoginProgress.name && (
-          <motion.div
-            className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+      {isScreenSmall && (
+        <div className="min-h-[400px] bg-gray-100/10">
+          <p className="text-2xl font-semibold my-auto text-center pt-28 px-2">
+            Please use a larger device to test FAZE ID.
+          </p>
+        </div>
+      )}
+      {!isScreenSmall && (
+        <div>
+          {/* camera poweroff toggle */}
+          <div
+            className={`${
+              (!isCameraActive || isLoading) && "hidden"
+            } absolute t-0 l-0 rounded-xl text-white px-2 pt-1 pb-2 z-[100] text-2xl w-fit hover:scale-110 transition-transform hover:cursor-pointer ml-2 mt-2 bg-gray-100/20`}
+            onClick={handleStartOver}
           >
-            {/* rounded name input */}
-            <div className="flex flex-col px-2 space-y-8">
-              <div className="flex flex-col mb-4">
-                <div className="flex flex-row space-x-2">
-                  <Image
-                    src={"/fazeLogo.png"}
-                    width={50}
-                    height={50}
-                    alt="Faze logo"
-                  />
-                  <h3 className="font-semibold text-3xl dark:text-white/70 my-auto">
-                    Login
-                  </h3>
-                </div>
+            <PoweroffOutlined size={20} className="" />
+          </div>
+          {/* username page */}
+          <AnimatePresence>
+            {loginProgress == LoginProgress.name && (
+              <motion.div
+                className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                {/* rounded name input */}
+                <div className="flex flex-col px-2 space-y-8">
+                  <div className="flex flex-col mb-4">
+                    <div className="flex flex-row space-x-2">
+                      <Image
+                        src={"/fazeLogo.png"}
+                        width={50}
+                        height={50}
+                        alt="Faze logo"
+                      />
+                      <h3 className="font-semibold text-3xl dark:text-white/70 my-auto">
+                        Login
+                      </h3>
+                    </div>
 
-                <p className="tex-lg text-gray-500 ml-2">
-                  Verify your identity to continue.
-                </p>
-              </div>
+                    <p className="tex-lg text-gray-500 ml-2">
+                      Verify your identity to continue.
+                    </p>
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      id="Username"
+                      className="bg-gray-50 dark:bg-gray-500/40 focus:border border-gray-400 w-full text-center focus:outline-none rounded-xl text-3xl font-semibold py-4"
+                      placeholder="Username"
+                      onChange={(e) => {
+                        setName(e.target.value);
+                      }}
+                      value={name}
+                      required
+                    />
+                  </div>
+                  <div
+                    className={`w-full rounded-xl bg-green-500/50 hover:bg-green-500/90 transition-color duration-500 text-3xl font-semibold text-center py-4 hover:cursor-pointer flex flex-row space-x-2 place-items-center justify-center ${
+                      isLoading && "disabled"
+                    }`}
+                    onClick={handleVerifyName}
+                  >
+                    <span className="">Next</span>
+                    {/* loading circle */}
+                    {isLoading && (
+                      <div className="w-6 h-6 border-t-2 border-gray-200 rounded-full animate-spin"></div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.div
+            animate={
+              loginProgress == LoginProgress.query ||
+              loginProgress == LoginProgress.register
+                ? "visible"
+                : "hidden"
+            }
+            variants={camVariants}
+          >
+            {/* camera */}
+            {isCameraActive && (
               <div>
-                <input
-                  type="text"
-                  id="Username"
-                  className="bg-gray-50 dark:bg-gray-500/40 focus:border border-gray-400 w-full text-center focus:outline-none rounded-xl text-3xl font-semibold py-4"
-                  placeholder="Username"
-                  onChange={(e) => {
-                    setName(e.target.value);
+                <Webcam
+                  ref={webcamRef}
+                  className={`rounded-tl-xl rounded-tr-xl z-10 max-w-sm md:max-w-xl md:max-w-xl`}
+                  style={{
+                    width: camSize.width,
+                    height: camSize.height,
                   }}
-                  value={name}
-                  required
+                  mirrored={true}
                 />
               </div>
-              <div
-                className={`w-full rounded-xl bg-green-500/50 hover:bg-green-500/90 transition-color duration-500 text-3xl font-semibold text-center py-4 hover:cursor-pointer flex flex-row space-x-2 place-items-center justify-center ${
-                  isLoading && "disabled"
-                }`}
-                onClick={handleVerifyName}
-              >
-                <span className="">Next</span>
-                {/* loading circle */}
-                {isLoading && (
-                  <div className="w-6 h-6 border-t-2 border-gray-200 rounded-full animate-spin"></div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.div
-        animate={
-          loginProgress == LoginProgress.query ||
-          loginProgress == LoginProgress.register
-            ? "visible"
-            : "hidden"
-        }
-        variants={camVariants}
-      >
-        {/* camera */}
-        {isCameraActive && (
-          <div>
-            <Webcam
-              ref={webcamRef}
-              className={`rounded-tl-xl rounded-tr-xl z-10 max-w-sm md:max-w-xl md:max-w-xl`}
+            )}
+            {/* activate camera button */}
+            <div
+              className={`${
+                (isCameraActive ||
+                  (loginProgress != LoginProgress.query &&
+                    loginProgress != LoginProgress.register)) &&
+                "hidden"
+              } rounded-tl-xl rounded-tr-xl z-[100] ${
+                isLoading && "bg-gray-500 animate-pulse"
+              }`}
               style={{
                 width: camSize.width,
                 height: camSize.height,
+                paddingTop: camSize.height / 2 - 50,
               }}
-              mirrored={true}
-            />
-          </div>
-        )}
-        {/* activate camera button */}
-        <div
-          className={`${
-            (isCameraActive ||
-              (loginProgress != LoginProgress.query &&
-                loginProgress != LoginProgress.register)) &&
-            "hidden"
-          } rounded-tl-xl rounded-tr-xl z-[100] ${
-            isLoading && "bg-gray-500 animate-pulse"
-          }`}
-          style={{
-            width: camSize.width,
-            height: camSize.height,
-            paddingTop: camSize.height / 2 - 50,
-          }}
-        >
-          <div
-            className="hover:cursor-pointer text-center font-semibold text-gray-400 flex flex-col space-y-2 w-fit mx-auto hover:text-sky-400 transition-color z-[100]"
-            onClick={handleToggleCamera}
-          >
-            {isLoading && (
-              <LoadingOutlined size={14} className="animate-spin" />
-            )}
-            <p className="text-3xl">Activate Camera</p>
-            <PoweroffOutlined size={14} className="" />
-          </div>
-          <div className="text-center text-gray-500 my-2">
-            {loginProgress == LoginProgress.query && (
-              <p className="text-xl">Verify your identity with a quick scan.</p>
-            )}
-            {loginProgress == LoginProgress.register && (
-              <p className="text-xl">
-                Move your head slowly to enable Faze ID.
-              </p>
-            )}
-          </div>
-        </div>
-        {/* face canvases */}
-        <canvas
-          ref={canvasRef}
-          className={`rounded-tl-xl rounded-tr-xl ${
-            !isCameraActive && "hidden"
-          } absolute top-0`}
-        />
-        <canvas
-          ref={canvasRefFace}
-          className={`rounded-tl-xl rounded-tr-xl ${
-            !isCameraActive && "hidden"
-          } absolute top-0`}
-        />
-        {/* face assist */}
-        {(loginProgress == LoginProgress.register ||
-          loginProgress == LoginProgress.query) && (
-          <div
-            className=" rounded-br-xl rounded-bl-xl pb-2"
-            style={{
-              width: camSize.width,
-            }}
-          >
-            <ProgressBar progressPercent={assistScore.score} />
-            <div className="px-2 min-h-[70px]">
-              {isCameraActive && (
-                <div className="mt-2 flex flex-col space-y-2">
-                  <p
-                    className={`${isVideoDark && "text-red-500"} ${
-                      isRequestVerification && "text-green-400"
-                    } font-bold text-center text-3xl`}
-                  >
-                    {isVideoDark
-                      ? "Too Dark"
-                      : isRequestVerification
-                      ? "Verifying..."
-                      : assistScore.msg}
+            >
+              <div
+                className="hover:cursor-pointer text-center font-semibold text-gray-400 flex flex-col space-y-2 w-fit mx-auto hover:text-sky-400 transition-color z-[100]"
+                onClick={handleToggleCamera}
+              >
+                {isLoading && (
+                  <LoadingOutlined size={14} className="animate-spin" />
+                )}
+                <p className="text-3xl">Activate Camera</p>
+                <PoweroffOutlined size={14} className="" />
+              </div>
+              <div className="text-center text-gray-500 my-2">
+                {loginProgress == LoginProgress.query && (
+                  <p className="text-xl">
+                    Verify your identity with a quick scan.
                   </p>
+                )}
+                {loginProgress == LoginProgress.register && (
+                  <p className="text-xl">
+                    Move your head slowly to enable Faze ID.
+                  </p>
+                )}
+              </div>
+            </div>
+            {/* face canvases */}
+            <canvas
+              ref={canvasRef}
+              className={`rounded-tl-xl rounded-tr-xl ${
+                !isCameraActive && "hidden"
+              } absolute top-0`}
+            />
+            <canvas
+              ref={canvasRefFace}
+              className={`rounded-tl-xl rounded-tr-xl ${
+                !isCameraActive && "hidden"
+              } absolute top-0`}
+            />
+            {/* face assist */}
+            {(loginProgress == LoginProgress.register ||
+              loginProgress == LoginProgress.query) && (
+              <div
+                className=" rounded-br-xl rounded-bl-xl pb-2"
+                style={{
+                  width: camSize.width,
+                }}
+              >
+                <ProgressBar progressPercent={assistScore.score} />
+                <div className="px-2 min-h-[70px]">
+                  {isCameraActive && (
+                    <div className="mt-2 flex flex-col space-y-2">
+                      <p
+                        className={`${isVideoDark && "text-red-500"} ${
+                          isRequestVerification && "text-green-400"
+                        } font-bold text-center text-3xl`}
+                      >
+                        {isVideoDark
+                          ? "Too Dark"
+                          : isRequestVerification
+                          ? "Verifying..."
+                          : assistScore.msg}
+                      </p>
 
-                  {showBlinks && (
-                    <p className="text-gray-700 dark:text-gray-200 font-semibold text-center text-xl">
-                      {blinkCount} blinks
-                    </p>
+                      {showBlinks && (
+                        <p className="text-gray-700 dark:text-gray-200 font-semibold text-center text-xl">
+                          {blinkCount} blinks
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-      </motion.div>
-      {/* registration completion page */}
-      <AnimatePresence>
-        {loginProgress == LoginProgress.queryDone && (
-          <motion.div
-            className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {/* green check circle icon outline */}
-            <div className="flex flex-col px-2 space-y-4 text-center text-2xl">
-              <div className="flex flex-col space-y-2 text-green-400">
-                <CheckCircleOutlined size={20} className="text-green-400" />
-                <p className="">Verification Complete</p>
               </div>
-              <Link
-                href="../profile"
-                className="text-xl hover:scale-105 transition-scale hover:text-green-400"
-              >
-                View Profile
-              </Link>
-            </div>
+            )}
           </motion.div>
-        )}
-      </AnimatePresence>
-      {/*  query completion page */}
-      <AnimatePresence>
-        {loginProgress == LoginProgress.registerDone && (
-          <motion.div
-            className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {/* green check circle icon outline */}
-            <div className="flex flex-col px-2 space-y-4 text-center text-2xl">
-              <div className="flex flex-col space-y-2 text-green-400">
-                <CheckCircleOutlined size={20} className="text-green-400" />
-                <p className="">Registration Complete</p>
-              </div>
-              <Link
-                href="../profile"
-                className="text-xl hover:scale-105 transition-scale hover:text-green-400"
+          {/* registration completion page */}
+          <AnimatePresence>
+            {loginProgress == LoginProgress.queryDone && (
+              <motion.div
+                className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
               >
-                View Profile
-              </Link>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                {/* green check circle icon outline */}
+                <div className="flex flex-col px-2 space-y-4 text-center text-2xl">
+                  <div className="flex flex-col space-y-2 text-green-400">
+                    <CheckCircleOutlined size={20} className="text-green-400" />
+                    <p className="">Verification Complete</p>
+                  </div>
+                  <Link
+                    href="../profile"
+                    className="text-xl hover:scale-105 transition-scale hover:text-green-400"
+                  >
+                    View Profile
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {/*  query completion page */}
+          <AnimatePresence>
+            {loginProgress == LoginProgress.registerDone && (
+              <motion.div
+                className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                {/* green check circle icon outline */}
+                <div className="flex flex-col px-2 space-y-4 text-center text-2xl">
+                  <div className="flex flex-col space-y-2 text-green-400">
+                    <CheckCircleOutlined size={20} className="text-green-400" />
+                    <p className="">Registration Complete</p>
+                  </div>
+                  <Link
+                    href="../profile"
+                    className="text-xl hover:scale-105 transition-scale hover:text-green-400"
+                  >
+                    View Profile
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
