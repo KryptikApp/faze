@@ -4,4 +4,4 @@ Privacy preserving face authentication on the browser. Applications include sybl
 
 This project is under development. A reference implementation and paper will be available soon.
 
-Visit the [FAZE website](https://faze.kryptik.app/) for more.
+Visit the [FAZE website](https://faze.kryptik.app/) for more information.
