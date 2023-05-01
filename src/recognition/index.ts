@@ -1,6 +1,7 @@
 import { Matrix } from "ml-matrix";
 import { PCA } from "ml-pca";
 import { MinHash } from "hyperfuzz";
+import { EncodingsSet } from "../../prisma/script";
 
 export interface IScan {
   encoding: number[];
@@ -88,26 +89,53 @@ function euclideanDistance(a: number[], b: number[]): number {
 /**
  * @description Computes avg similarity between query and registered set.
  * @param query query encoding
- * @param registeredSet set of registered encodings
+ * @param query id of query
+ * @param registeredSet set of registered encodings for all user
  * @returns true if avg similarity is greater than recognitionThreshold, else false
  */
-const recognitionThreshold = 80;
+interface INeighbor {
+  id: string;
+  distance: number;
+}
 export async function validateEncoding(
   query: number[],
-  registeredSet: number[][]
+  queryId: string,
+  registeredSet: EncodingsSet
 ) {
-  const similarityStore: number[] = [];
+  const neighbors: INeighbor[] = [];
   for (const encoding of registeredSet) {
-    const similarity = await computeSimilarity(encoding, query);
-    similarityStore.push(similarity);
+    const newDist = euclideanDistance(encoding.encoding, query);
+    neighbors.push({ id: encoding.userId, distance: newDist });
   }
-
-  const avgSimilarity =
-    similarityStore.reduce((a, b) => a + b, 0) / similarityStore.length;
-  console.log("Similarity Store: ", similarityStore);
-  console.log("Average Similarity: ", avgSimilarity);
-  if (avgSimilarity > recognitionThreshold) {
+  // sort neighbors by distance
+  neighbors.sort((a, b) => a.distance - b.distance);
+  // get top 5 neighbors
+  const top5 = neighbors.slice(0, 5);
+  // check if majority of top 5 neighbors match the query id
+  const majority = top5.filter((neighbor) => neighbor.id === queryId);
+  if (majority.length >= 3) {
     return true;
   }
   return false;
 }
+
+// const recognitionThreshold = 80;
+// export async function validateEncoding(
+//   query: number[],
+//   registeredSet: number[][]
+// ) {
+//   const similarityStore: number[] = [];
+//   for (const encoding of registeredSet) {
+//     const similarity = await computeSimilarity(encoding, query);
+//     similarityStore.push(similarity);
+//   }
+
+//   const avgSimilarity =
+//     similarityStore.reduce((a, b) => a + b, 0) / similarityStore.length;
+//   console.log("Similarity Store: ", similarityStore);
+//   console.log("Average Similarity: ", avgSimilarity);
+//   if (avgSimilarity > recognitionThreshold) {
+//     return true;
+//   }
+//   return false;
+// }
