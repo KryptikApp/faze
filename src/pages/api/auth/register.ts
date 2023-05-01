@@ -7,7 +7,7 @@ import {
   createUser,
   getUserByUsername,
   hasRegisteredFaceEncodings,
-} from "../../../prisma/script";
+} from "../../../../prisma/script";
 import { User } from "@prisma/client";
 import { generateTokens } from "@/auth/jwt";
 import { setCookie } from "cookies-next";

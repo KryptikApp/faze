@@ -1,7 +1,7 @@
 // this file is responsible for registering face encodings for a user
 
 import { NextApiRequest, NextApiResponse } from "next";
-import { getUserByUsername } from "../../../prisma/script";
+import { getUserByUsername } from "../../../../prisma/script";
 
 type Data = {
   msg?: string;

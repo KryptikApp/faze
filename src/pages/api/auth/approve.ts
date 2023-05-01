@@ -6,7 +6,7 @@ import {
   addRefreshTokenToWhitelist,
   getAllFaceEncodings,
   getUserByUsername,
-} from "../../../prisma/script";
+} from "../../../../prisma/script";
 import { validateEncoding } from "@/recognition";
 import { generateTokens } from "@/auth/jwt";
 

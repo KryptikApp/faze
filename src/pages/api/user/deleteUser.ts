@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { deleteUserById, getUserById } from "../../../prisma/script";
+import { deleteUserById, getUserById } from "../../../../prisma/script";
 import { deleteCookie } from "cookies-next";
 
 type Data = {

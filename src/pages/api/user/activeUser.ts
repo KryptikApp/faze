@@ -1,6 +1,6 @@
 import { User } from "@prisma/client";
 import { NextApiRequest, NextApiResponse } from "next";
-import { getUserById } from "../../../prisma/script";
+import { getUserById } from "../../../../prisma/script";
 
 type Data = {
   user?: User;

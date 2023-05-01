@@ -4,7 +4,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import {
   getUserByUsername,
   hasRegisteredFaceEncodings,
-} from "../../../prisma/script";
+} from "../../../../prisma/script";
 
 type Data = {
   isAvailable: boolean;

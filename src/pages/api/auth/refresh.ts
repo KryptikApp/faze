@@ -10,7 +10,7 @@ import {
   deleteRefreshToken,
   addRefreshTokenToWhitelist,
   getUserByUsername,
-} from "../../../prisma/script";
+} from "../../../../prisma/script";
 
 type Data = {
   accessToken?: string;
