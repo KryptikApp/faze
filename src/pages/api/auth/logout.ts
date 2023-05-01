@@ -5,7 +5,7 @@ import { deleteCookie, getCookie } from "cookies-next";
 import {
   deleteRefreshToken,
   findRefreshTokenById,
-} from "../../../../prisma/script";
+} from "../../../prisma/script";
 
 type Data = {
   accessToken?: string;

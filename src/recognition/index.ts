@@ -1,7 +1,7 @@
 import { Matrix } from "ml-matrix";
 import { PCA } from "ml-pca";
 import { MinHash } from "hyperfuzz";
-import { EncodingsSet } from "../../prisma/script";
+import { EncodingsSet } from "../prisma/script";
 
 export interface IScan {
   encoding: number[];
