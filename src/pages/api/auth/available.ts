@@ -31,10 +31,6 @@ export default async function handler(
     }
     // check if user exists
     const user = await getUserByUsername(username);
-    console.log("USER:");
-    console.log(user);
-    console.log("USERNAME:");
-    console.log(username);
 
     if (user) {
       // check if has registered encodings
