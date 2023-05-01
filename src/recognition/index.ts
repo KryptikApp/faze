@@ -109,11 +109,11 @@ export async function validateEncoding(
   }
   // sort neighbors by distance
   neighbors.sort((a, b) => a.distance - b.distance);
-  // get top 5 neighbors
-  const top5 = neighbors.slice(0, 5);
+  // get top 10 neighbors
+  const top5 = neighbors.slice(0, 10);
   // check if majority of top 5 neighbors match the query id
   const majority = top5.filter((neighbor) => neighbor.id === queryId);
-  if (majority.length >= 3) {
+  if (majority.length >= 7) {
     return true;
   }
   return false;
