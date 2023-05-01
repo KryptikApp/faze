@@ -137,7 +137,7 @@ export function computeVideoBrightness(video: HTMLVideoElement): number {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   if (canvas.width == 0 || canvas.height == 0) {
-    return 0;
+    return 150;
   }
   // Get the 2D context of the canvas and draw the current video frame onto it
   const ctx = canvas.getContext("2d")!;
