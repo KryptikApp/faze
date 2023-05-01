@@ -26,9 +26,11 @@ import useInterval from "../hooks/useInterval";
 import ProgressBar from "../progress/ProgressBar";
 import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { checkUserRegistered } from "@/auth/user";
+import { checkUserRegistered, getActiveUser } from "@/auth/user";
 import { registerUser, verifyScan } from "@/auth/verify";
 import Link from "next/link";
+import { User } from "@prisma/client";
+import { useRouter } from "next/router";
 
 interface ICamSize {
   width: number;
@@ -79,6 +81,8 @@ export default function Scanner() {
     useState<boolean>(false);
   const desiredScansReg = 5;
   const desiredScansQuery = 1;
+
+  const router = useRouter();
 
   // score indicating how well the user is positioned
   const [assistScore, setAssistScore] =
@@ -140,7 +144,7 @@ export default function Scanner() {
       }
     }
     if (!approved) {
-      resetScans();
+      handleStartOver();
       toast.error("Verification failed. Please try again.");
     }
     setIsRequestVerification(false);
@@ -384,6 +388,12 @@ export default function Scanner() {
       toast.error("Name must be at least 3 characters long");
       return;
     }
+    const activeUser: User | null = await getActiveUser();
+    if (activeUser && activeUser.username == name) {
+      toast.success("Logged in!");
+      router.push("../profile");
+      return;
+    }
     setIsLoading(true);
     setIsLoading(false);
     const res = await checkUserRegistered(name);
@@ -394,9 +404,8 @@ export default function Scanner() {
     setIsUserRegistered(newIsRegistered);
     setIsNameAvailable(newIsAvailable);
     if (!newIsAvailable) {
-      toast("Name is taken.");
+      toast("Logging in...");
     }
-
     if (newIsRegistered) {
       setLogInProgress(LoginProgress.query);
     } else {
@@ -545,7 +554,7 @@ export default function Scanner() {
               </div>
               <div
                 className={`w-full rounded-xl bg-green-500/50 hover:bg-green-500/90 transition-color duration-500 text-3xl font-semibold text-center py-4 hover:cursor-pointer flex flex-row space-x-2 place-items-center justify-center ${
-                  isLoading && "diabled"
+                  isLoading && "disabled"
                 }`}
                 onClick={handleVerifyName}
               >
@@ -680,7 +689,7 @@ export default function Scanner() {
             <div className="flex flex-col px-2 space-y-4 text-center text-2xl">
               <div className="flex flex-col space-y-2 text-green-400">
                 <CheckCircleOutlined size={20} className="text-green-400" />
-                <p className="">Registration Complete</p>
+                <p className="">Verification Complete</p>
               </div>
               <Link
                 href="../profile"
@@ -704,7 +713,7 @@ export default function Scanner() {
             <div className="flex flex-col px-2 space-y-4 text-center text-2xl">
               <div className="flex flex-col space-y-2 text-green-400">
                 <CheckCircleOutlined size={20} className="text-green-400" />
-                <p className="">Verification Complete</p>
+                <p className="">Registration Complete</p>
               </div>
               <Link
                 href="../profile"
