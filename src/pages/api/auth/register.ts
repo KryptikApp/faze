@@ -3,11 +3,15 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import {
   addFaceEncoding,
+  addRefreshTokenToWhitelist,
   createUser,
   getUserByUsername,
   hasRegisteredFaceEncodings,
 } from "../../../../prisma/script";
 import { User } from "@prisma/client";
+import { generateTokens } from "@/auth/jwt";
+import { setCookie } from "cookies-next";
+import { v4 } from "uuid";
 
 type Data = {
   approved: boolean;
@@ -43,6 +47,21 @@ export default async function handler(
     for (const encoding of encodingsToSave) {
       const newEncoding = await addFaceEncoding(user.id, encoding, true);
     }
+    const jti = v4();
+    const { accessToken, refreshToken } = generateTokens(user, jti);
+    await addRefreshTokenToWhitelist(jti, refreshToken, user.id);
+    setCookie("accessToken", accessToken, {
+      req,
+      res,
+      secure: process.env.APP_STAGE == "production",
+      httpOnly: true,
+    });
+    setCookie("refreshToken", refreshToken, {
+      req,
+      res,
+      secure: process.env.APP_STAGE == "production",
+      httpOnly: true,
+    });
     return res
       .status(200)
       .json({ msg: "User encodings have been registered.", approved: true });
