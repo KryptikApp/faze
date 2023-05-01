@@ -1,30 +1,46 @@
-import "@tensorflow/tfjs-core";
-import "@tensorflow/tfjs-converter";
-import "@tensorflow/tfjs-backend-webgl";
 import * as face from "@tensorflow-models/face-landmarks-detection";
 import { MediaPipeFaceMesh } from "@tensorflow-models/face-landmarks-detection/dist/types";
-import { useCallback, useEffect, useRef, useState } from "react";
-import Webcam from "react-webcam";
-import { drawMesh } from "@/utils/drawMesh";
-import {
-  AssistScore,
-  IBoundingBox,
-  defaultAssistScore,
-  idealFaceBox,
-} from "@/types/face";
-import { assist } from "@/assist";
-import ProgressBar from "../progress/ProgressBar";
-import { LoadingOutlined, PoweroffOutlined } from "@ant-design/icons";
+import "@tensorflow/tfjs-backend-webgl";
+import "@tensorflow/tfjs-converter";
+import "@tensorflow/tfjs-core";
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+
+import { assist, computeVideoBrightness, shouldScan } from "@/assist";
+import { IScan, computeEncoding } from "@/recognition";
 import {
   Eye,
   IBlink,
   belowEARThreshold,
   computeCombinedEAR,
 } from "@/types/eye";
+import { AssistScore, IBoundingBox, defaultAssistScore } from "@/types/face";
+import {
+  CheckCircleOutlined,
+  LoadingOutlined,
+  PoweroffOutlined,
+} from "@ant-design/icons";
+import { PCA } from "ml-pca";
+import Webcam from "react-webcam";
+import useInterval from "../hooks/useInterval";
+import ProgressBar from "../progress/ProgressBar";
+import { AnimatePresence, motion } from "framer-motion";
+import toast from "react-hot-toast";
+import { checkUserRegistered } from "@/auth/user";
+import { registerUser, verifyScan } from "@/auth/verify";
+import Link from "next/link";
 
 interface ICamSize {
   width: number;
   height: number;
+}
+
+enum LoginProgress {
+  name = 0,
+  register = 1,
+  query = 2,
+  registerDone = 3,
+  queryDone = 4,
 }
 
 export default function Scanner() {
@@ -35,16 +51,34 @@ export default function Scanner() {
   const [distFromCamera, setDistFromCamera] = useState<number>(0);
   const [boundingBox, setBoundingBox] = useState<IBoundingBox | null>(null);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
   const [isScreenSmall, setIsScreenSmall] = useState<boolean>(false);
   const [camSize, setCamSize] = useState<ICamSize>({ width: 576, height: 432 });
   const [blinkCount, setBlinkCount] = useState<number>(0);
   const [historicalBlinks, setHistoricalBlinks] = useState<IBlink[]>([]);
+  const [scanCount, setScanCount] = useState<number>(0);
   // eye aspect ratio. 1 corresponds to open eye, 0 to closed eye
   // computed across both eyes
   const [lastEAR, setLastEAR] = useState<number>(1);
   const [newEAR, setNewEar] = useState<number>(1);
+  const [pca, setPca] = useState<PCA | null>(null);
+  const [detector, setDetector] = useState<MediaPipeFaceMesh | null>(null);
+  const [interval, setInterval] = useState<number>(3000);
+  const [loginProgress, setLogInProgress] = useState<LoginProgress>(
+    LoginProgress.name
+  );
+  const [name, setName] = useState<string>("");
+  const [videoBrightness, setVideoBrightness] = useState<number>(0);
+  const [isVideoDark, setIsVideoDark] = useState<boolean>(false);
+  const [isNameAvailable, setIsNameAvailable] = useState<boolean>(false);
+  const [isUserRegistered, setIsUserRegistered] = useState<boolean>(false);
+  const [showBlinks, setShowBlinks] = useState<boolean>(false);
+  const [historicalScans, setHistoricalScans] = useState<IScan[]>([]);
+  const [isRequestVerification, setIsRequestVerification] =
+    useState<boolean>(false);
+  const desiredScansReg = 5;
+  const desiredScansQuery = 1;
 
   // score indicating how well the user is positioned
   const [assistScore, setAssistScore] =
@@ -56,15 +90,84 @@ export default function Scanner() {
   }
 
   async function initFaceDetection() {
-    const detector: MediaPipeFaceMesh = await face.load(
-      face.SupportedPackages.mediapipeFacemesh
+    const newDetector: MediaPipeFaceMesh = await face.load(
+      face.SupportedPackages.mediapipeFacemesh,
+      {
+        maxFaces: 1,
+      }
     );
-    setInterval(() => {
-      detect(detector);
-    }, 100);
+    // fetch saved pca
+    const savedPcaPath = "/landmarksPCA.json";
+    const pca = await fetch(savedPcaPath);
+    const pcaJson = await pca.json();
+    const pcaModel = PCA.load(pcaJson);
+    setPca(pcaModel);
+    setInterval(100);
+    setDetector(newDetector);
   }
 
-  async function detect(net: MediaPipeFaceMesh) {
+  useInterval(() => {
+    detect(detector);
+  }, interval);
+
+  function resetScans() {
+    setHistoricalScans([]);
+    setHistoricalBlinks([]);
+    setScanCount(0);
+    setBlinkCount(0);
+  }
+
+  async function handleVerification() {
+    console.log("handling verification...");
+    if (!isRequestVerification) return;
+    setIsLoading(true);
+    let approved = false;
+    if (!isUserRegistered) {
+      console.log("registering user");
+      approved = await registerUser(name, historicalScans);
+      console.log(approved);
+      if (approved) {
+        handleToggleCamera();
+        setLogInProgress(LoginProgress.registerDone);
+        toast.success("Registration successful!");
+      }
+    } else {
+      approved = await verifyScan(name, historicalScans);
+      if (approved) {
+        handleToggleCamera();
+        setLogInProgress(LoginProgress.queryDone);
+        toast.success("Verification successful!");
+      }
+    }
+    if (!approved) {
+      resetScans();
+      toast.error("Verification failed. Please try again.");
+    }
+    setIsRequestVerification(false);
+    setIsLoading(false);
+  }
+
+  useEffect(() => {
+    handleVerification();
+  }, [isRequestVerification]);
+
+  useInterval(() => {
+    if (!webcamRef.current) return;
+    const video = webcamRef.current.video;
+    if (!video) return;
+    const newBrightness = computeVideoBrightness(video);
+    console.log(
+      "Video brightness: ",
+      newBrightness,
+      "is dark: ",
+      newBrightness < 100 ? "yes" : "no"
+    );
+    setVideoBrightness(newBrightness);
+    setIsVideoDark(newBrightness < 100);
+  }, 10000);
+
+  async function detect(net: MediaPipeFaceMesh | null) {
+    if (!net) return;
     if (
       typeof webcamRef.current !== "undefined" &&
       webcamRef.current !== null &&
@@ -73,22 +176,22 @@ export default function Scanner() {
     ) {
       // Get Video Properties
       const video = webcamRef.current.video;
-      video.width = camSize.width;
-      video.height = camSize.height;
-      const face = await net.estimateFaces({ input: video });
-      const xRatio = camSize.width / 640;
-      const yRatio = camSize.height / 480;
+      const face = await net.estimateFaces({
+        input: video,
+      });
+      const xRatio = video.offsetWidth / video.videoWidth;
+      const yRatio = video.offsetHeight / video.videoHeight;
       if (face && face[0] && face[0].scaledMesh) {
         const faceBox: any = face[0].boundingBox;
         // adjust for camera size
         const newBoundingBox: IBoundingBox = {
-          tlX: faceBox.topLeft[0] * xRatio,
+          tlX: video.offsetWidth - faceBox.topLeft[0] * xRatio,
           tlY: faceBox.topLeft[1] * yRatio,
-          brX: faceBox.bottomRight[0] * xRatio,
+          brX: video.offsetWidth - faceBox.bottomRight[0] * xRatio,
           brY: faceBox.bottomRight[1] * yRatio,
         };
         // compute assist score
-        handleFaceAssist(newBoundingBox);
+        handleFaceAssist(newBoundingBox, face[0].scaledMesh);
         const width = newBoundingBox.brX - newBoundingBox.tlX;
         const height = newBoundingBox.brY - newBoundingBox.tlY;
         if (canvasRefFace.current) {
@@ -100,6 +203,15 @@ export default function Scanner() {
             ctx.beginPath();
             ctx.lineWidth = 4;
             ctx.strokeStyle = "white";
+            ctx.ellipse(
+              newBoundingBox.tlX,
+              newBoundingBox.tlY,
+              10,
+              10,
+              0,
+              0,
+              2 * Math.PI
+            );
             ctx.roundRect(
               newBoundingBox.tlX,
               newBoundingBox.tlY,
@@ -112,11 +224,19 @@ export default function Scanner() {
           });
         }
         // run eye detection
-        handleBlinkDetection(face[0].mesh, lastEAR);
+        handleBlinkDetection(face[0].scaledMesh, lastEAR);
         setBoundingBox(newBoundingBox);
       } else {
-        // TODO: clear canvas
-        handleFaceAssist(null);
+        // clear canvas
+        if (canvasRefFace.current) {
+          const ctx = canvasRefFace.current.getContext(
+            "2d"
+          ) as CanvasRenderingContext2D;
+          requestAnimationFrame(() => {
+            ctx.clearRect(0, 0, camSize.width, camSize.height);
+          });
+        }
+        handleFaceAssist(null, null);
       }
       setHasLoaded(true);
       setIsLoading(false);
@@ -127,9 +247,55 @@ export default function Scanner() {
     }
   }
 
+  /** Extract face encodings */
+  async function handleRecognition(
+    landmarks: any | null,
+    currAssistScore: AssistScore
+  ) {
+    if (!landmarks) return;
+    if (!pca) return;
+    // don't scan if video is dark
+    if (isVideoDark) return;
+    const desiredScans = isUserRegistered ? desiredScansQuery : desiredScansReg;
+    const shouldScanNew = shouldScan(
+      historicalScans,
+      assistScore,
+      desiredScans
+    );
+    if (!shouldScanNew) {
+      return;
+    }
+    try {
+      const faceEncoding = await computeEncoding(landmarks, pca);
+      const newScan: IScan = {
+        encoding: faceEncoding,
+        score: currAssistScore.score,
+        timestamp: Date.now(),
+      };
+      const newScans = [...historicalScans, newScan];
+      setHistoricalScans(newScans);
+      setScanCount(scanCount + 1);
+      // if we have enough scans, request verification
+      if (newScans.length == desiredScans) {
+        setIsRequestVerification(true);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   /** Provide suggestions for user face position and orinetation. Suggestions are derived from the difference between the inferred face position and the target bounding box. */
-  function handleFaceAssist(currFaceBox: IBoundingBox | null) {
-    const newAssistScore: AssistScore = assist(targetFaceBox, currFaceBox);
+  function handleFaceAssist(
+    currFaceBox: IBoundingBox | null,
+    currLandmarks: any
+  ) {
+    const newAssistScore: AssistScore = assist(
+      targetFaceBox,
+      currFaceBox,
+      true
+    );
+
+    handleRecognition(currLandmarks, newAssistScore);
     setAssistScore(newAssistScore);
     updateTargetBox(targetFaceBox, newAssistScore.color);
   }
@@ -146,6 +312,14 @@ export default function Scanner() {
     }
   }
 
+  function handleStartOver() {
+    setLogInProgress(LoginProgress.name);
+    setIsRequestVerification(false);
+    setShowBlinks(false);
+    resetScans();
+    handleToggleCamera();
+  }
+
   /** Activates camera.*/
   function handleToggleCamera() {
     // don't do anything if loading
@@ -153,18 +327,21 @@ export default function Scanner() {
     setAssistScore(defaultAssistScore);
     setBoundingBox(null);
     const newTargetBox: IBoundingBox = {
-      tlX: camSize.width / 4,
+      tlX: (3 * camSize.width) / 4,
       tlY: camSize.height / 7,
-      brX: (3 * camSize.width) / 4,
+      brX: camSize.width / 4,
       brY: (6 * camSize.height) / 7,
     };
     setTargetFaceBox(newTargetBox);
     // loading state is true if camera is pulling up
     if (!isCameraActive) setIsLoading(true);
     setIsCameraActive(!isCameraActive);
+    setAssistScore(defaultAssistScore);
+    setScanCount(0);
+    setBlinkCount(0);
   }
 
-  /** Updates target box dfimensions and color */
+  /** Updates target box dimensions and color */
   function updateTargetBox(newTargetBox: IBoundingBox | null, color: string) {
     if (!newTargetBox) return;
     const ctx = canvasRef.current?.getContext("2d") || null;
@@ -172,6 +349,7 @@ export default function Scanner() {
     ctx.beginPath();
     ctx.lineWidth = 4;
     ctx.strokeStyle = color;
+    ctx.ellipse(newTargetBox.tlX, newTargetBox.tlY, 10, 10, 0, 0, 2 * Math.PI);
     ctx.roundRect(
       newTargetBox.tlX,
       newTargetBox.tlY,
@@ -201,6 +379,36 @@ export default function Scanner() {
     }
   }
 
+  async function handleVerifyName() {
+    if (name.length < 3) {
+      toast.error("Name must be at least 3 characters long");
+      return;
+    }
+    setIsLoading(true);
+    setIsLoading(false);
+    const res = await checkUserRegistered(name);
+    console.log("REGISTERED RESPONSE:");
+    console.log(res);
+    const newIsRegistered = res.isRegistered;
+    const newIsAvailable = res.isAvailable;
+    setIsUserRegistered(newIsRegistered);
+    setIsNameAvailable(newIsAvailable);
+    if (!newIsAvailable) {
+      toast("Name is taken.");
+    }
+
+    if (newIsRegistered) {
+      setLogInProgress(LoginProgress.query);
+    } else {
+      setLogInProgress(LoginProgress.register);
+    }
+  }
+
+  const camVariants = {
+    visible: { opacity: 1, transition: { delay: 0.3 } },
+    hidden: { opacity: 0 },
+  };
+
   useEffect(() => {
     setIsScreenSmall(window.innerWidth < 778);
     // Handler to call on window resize
@@ -229,6 +437,18 @@ export default function Scanner() {
         EAR: newEAR,
       };
       setHistoricalBlinks([...historicalBlinks, newBlink]);
+      // get last three blinks
+      const lastThreeBlinks = historicalBlinks.slice(-3);
+      // check if last three blinks were within 3 seconds of each other
+      const isBlinkingUnlocked =
+        lastThreeBlinks.length >= 3 &&
+        lastThreeBlinks.every(
+          (blink) => newBlink.timestamp - blink.timestamp < 3000
+        );
+      if (isBlinkingUnlocked && !showBlinks) {
+        setShowBlinks(true);
+        toast.success("Blinking easter egg unlocked!");
+      }
     }
     // update lastEAR regardless of whether blink was detected
     setLastEAR(newEAR);
@@ -265,84 +485,237 @@ export default function Scanner() {
   }, [isCameraActive]);
 
   return (
-    <div className="absolute m-auto left-0 right-0 min-h-[480px] max-w-sm md:max-w-xl w-[100%]">
+    <div
+      className={`absolute m-auto left-0 right-0 ${
+        loginProgress != LoginProgress.name &&
+        loginProgress != LoginProgress.queryDone &&
+        loginProgress != LoginProgress.registerDone
+          ? "min-h-[480px]"
+          : "h-fit"
+      } max-w-sm md:max-w-xl border border-gray-400 rounded-xl`}
+    >
+      {/* camera poweroff toggle */}
       <div
         className={`${
           (!isCameraActive || isLoading) && "hidden"
         } absolute t-0 l-0 rounded-xl text-white px-2 pt-1 pb-2 z-[100] text-2xl w-fit hover:scale-110 transition-transform hover:cursor-pointer ml-2 mt-2 bg-gray-100/20`}
-        onClick={handleToggleCamera}
+        onClick={handleStartOver}
       >
         <PoweroffOutlined size={20} className="" />
       </div>
-      {/* camera */}
-      {isCameraActive && (
-        <div>
-          <Webcam
-            ref={webcamRef}
-            className={`rounded-tl-xl rounded-tr-xl z-10 max-w-sm md:max-w-xl border-r border-l border-t border-gray-400`}
+      {/* username page */}
+      <AnimatePresence>
+        {loginProgress == LoginProgress.name && (
+          <motion.div
+            className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {/* rounded name input */}
+            <div className="flex flex-col px-2 space-y-8">
+              <div className="flex flex-col mb-4">
+                <div className="flex flex-row space-x-2">
+                  <Image
+                    src={"/fazeLogo.png"}
+                    width={50}
+                    height={50}
+                    alt="Faze logo"
+                  />
+                  <h3 className="font-semibold text-3xl dark:text-white/70 my-auto">
+                    Login
+                  </h3>
+                </div>
+
+                <p className="tex-lg text-gray-500 ml-2">
+                  Verify your identity to continue.
+                </p>
+              </div>
+              <div>
+                <input
+                  type="text"
+                  id="Username"
+                  className="bg-gray-50 dark:bg-gray-500/40 focus:border border-gray-400 w-full text-center focus:outline-none rounded-xl text-3xl font-semibold py-4"
+                  placeholder="Username"
+                  onChange={(e) => {
+                    setName(e.target.value);
+                  }}
+                  value={name}
+                  required
+                />
+              </div>
+              <div
+                className={`w-full rounded-xl bg-green-500/50 hover:bg-green-500/90 transition-color duration-500 text-3xl font-semibold text-center py-4 hover:cursor-pointer flex flex-row space-x-2 place-items-center justify-center ${
+                  isLoading && "diabled"
+                }`}
+                onClick={handleVerifyName}
+              >
+                <span className="">Next</span>
+                {/* loading circle */}
+                {isLoading && (
+                  <div className="w-6 h-6 border-t-2 border-gray-200 rounded-full animate-spin"></div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        animate={
+          loginProgress == LoginProgress.query ||
+          loginProgress == LoginProgress.register
+            ? "visible"
+            : "hidden"
+        }
+        variants={camVariants}
+      >
+        {/* camera */}
+        {isCameraActive && (
+          <div>
+            <Webcam
+              ref={webcamRef}
+              className={`rounded-tl-xl rounded-tr-xl z-10 max-w-sm md:max-w-xl md:max-w-xl`}
+              style={{
+                width: camSize.width,
+                height: camSize.height,
+              }}
+              mirrored={true}
+            />
+          </div>
+        )}
+        {/* activate camera button */}
+        <div
+          className={`${
+            (isCameraActive ||
+              (loginProgress != LoginProgress.query &&
+                loginProgress != LoginProgress.register)) &&
+            "hidden"
+          } rounded-tl-xl rounded-tr-xl z-[100] ${
+            isLoading && "bg-gray-500 animate-pulse"
+          }`}
+          style={{
+            width: camSize.width,
+            height: camSize.height,
+            paddingTop: camSize.height / 2 - 50,
+          }}
+        >
+          <div
+            className="hover:cursor-pointer text-center font-semibold text-gray-400 flex flex-col space-y-2 w-fit mx-auto hover:text-sky-400 transition-color z-[100]"
+            onClick={handleToggleCamera}
+          >
+            {isLoading && (
+              <LoadingOutlined size={14} className="animate-spin" />
+            )}
+            <p className="text-3xl">Activate Camera</p>
+            <PoweroffOutlined size={14} className="" />
+          </div>
+          <div className="text-center text-gray-500 my-2">
+            {loginProgress == LoginProgress.query && (
+              <p className="text-xl">Verify your identity with a quick scan.</p>
+            )}
+            {loginProgress == LoginProgress.register && (
+              <p className="text-xl">
+                Move your head slowly to enable Faze ID.
+              </p>
+            )}
+          </div>
+        </div>
+        {/* face canvases */}
+        <canvas
+          ref={canvasRef}
+          className={`rounded-tl-xl rounded-tr-xl ${
+            !isCameraActive && "hidden"
+          } absolute top-0`}
+        />
+        <canvas
+          ref={canvasRefFace}
+          className={`rounded-tl-xl rounded-tr-xl ${
+            !isCameraActive && "hidden"
+          } absolute top-0`}
+        />
+        {/* face assist */}
+        {(loginProgress == LoginProgress.register ||
+          loginProgress == LoginProgress.query) && (
+          <div
+            className=" rounded-br-xl rounded-bl-xl pb-2"
             style={{
               width: camSize.width,
-              height: camSize.height,
             }}
-          />
-        </div>
-      )}
-      {/* activate camera button */}
-      <div
-        className={`${
-          isCameraActive && "hidden"
-        } rounded-tl-xl rounded-tr-xl border border-t border-r border-l border-gray-400 z-[100] ${
-          isLoading && "bg-gray-500 animate-pulse"
-        }`}
-        style={{
-          width: camSize.width,
-          height: camSize.height,
-          paddingTop: camSize.height / 2 - 50,
-        }}
-      >
-        <div
-          className="hover:cursor-pointer text-center font-semibold text-gray-400 flex flex-col space-y-2 w-fit mx-auto hover:text-sky-400 transition-color z-[100]"
-          onClick={handleToggleCamera}
-        >
-          {isLoading && <LoadingOutlined size={14} className="animate-spin" />}
-          <p className="text-3xl">Activate Camera</p>
-          <PoweroffOutlined size={14} className="" />
-        </div>
-      </div>
-      {/* face canvases */}
-      <canvas
-        ref={canvasRef}
-        className={`rounded-tl-xl rounded-tr-xl ${
-          !isCameraActive && "hidden"
-        } absolute top-0`}
-      />
-      <canvas
-        ref={canvasRefFace}
-        className={`rounded-tl-xl rounded-tr-xl ${
-          !isCameraActive && "hidden"
-        } absolute top-0`}
-      />
-      {/* face assist */}
-      <div
-        className=" border-r border-l border-b border-gray-400 rounded-br-xl rounded-bl-xl pb-2"
-        style={{
-          width: camSize.width,
-        }}
-      >
-        <ProgressBar progressPercent={assistScore.score} />
-        <div className="px-2 min-h-[70px]">
-          {isCameraActive && (
-            <div className="mt-2 flex flex-col space-y-2">
-              <p className="text-gray-700 dark:text-gray-200 font-bold text-center text-3xl">
-                {assistScore.msg}
-              </p>
-              <p className="text-gray-700 dark:text-gray-200 font-semibold text-center text-xl">
-                {blinkCount} blinks
-              </p>
+          >
+            <ProgressBar progressPercent={assistScore.score} />
+            <div className="px-2 min-h-[70px]">
+              {isCameraActive && (
+                <div className="mt-2 flex flex-col space-y-2">
+                  <p
+                    className={`${isVideoDark && "text-red-500"} ${
+                      isRequestVerification && "text-green-400"
+                    } font-bold text-center text-3xl`}
+                  >
+                    {isVideoDark
+                      ? "Too Dark"
+                      : isRequestVerification
+                      ? "Verifying..."
+                      : assistScore.msg}
+                  </p>
+                  {showBlinks && (
+                    <p className="text-gray-700 dark:text-gray-200 font-semibold text-center text-xl">
+                      {blinkCount} blinks
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
+      </motion.div>
+      {/* registration completion page */}
+      <AnimatePresence>
+        {loginProgress == LoginProgress.queryDone && (
+          <motion.div
+            className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {/* green check circle icon outline */}
+            <div className="flex flex-col px-2 space-y-4 text-center text-2xl">
+              <div className="flex flex-col space-y-2 text-green-400">
+                <CheckCircleOutlined size={20} className="text-green-400" />
+                <p className="">Registration Complete</p>
+              </div>
+              <Link
+                href="../profile"
+                className="text-xl hover:scale-105 transition-scale"
+              >
+                View Profile
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/*  query completion page */}
+      <AnimatePresence>
+        {loginProgress == LoginProgress.registerDone && (
+          <motion.div
+            className="rounded-xl bg-white/90 dark:bg-white/10 pt-4 pb-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {/* green check circle icon outline */}
+            <div className="flex flex-col px-2 space-y-4 text-center text-2xl">
+              <div className="flex flex-col space-y-2 text-green-400">
+                <CheckCircleOutlined size={20} className="text-green-400" />
+                <p className="">Verification Complete</p>
+              </div>
+              <Link
+                href="../profile"
+                className="text-xl hover:scale-105 transition-scale"
+              >
+                View Profile
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
