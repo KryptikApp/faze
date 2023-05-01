@@ -8,7 +8,7 @@ export async function registerUser(username: string, scans: IScan[]) {
     encodings: encodings,
   };
   // make request to server to register user and scans
-  const res = await KryptikFetch("/api/user/register", {
+  const res = await KryptikFetch("/api/auth/register", {
     method: "POST",
     timeout: 8000,
     headers: { "Content-Type": "application/json" },
