@@ -145,6 +145,7 @@ export default function Scanner() {
     let approved = false;
     if (!humanityVerified) {
       toast.error("Still verifying humanity.");
+      return;
     }
     if (!isUserRegistered) {
       console.log("registering user");
