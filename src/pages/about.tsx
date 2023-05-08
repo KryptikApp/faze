@@ -417,6 +417,24 @@ export default function Home() {
           relatively small proportion of women. In addition, many ethnicities
           have minor representation or none at all.”
         </p>
+        <h1 className="text-4xl font-bold">Ethics</h1>
+        <p>
+          Privacy is at the core of every design decision we make. All
+          computations should be done on the client, if possible. But privacy
+          alone does not make for an ethical application.
+        </p>
+        <p>
+          Unbiased training data sets are essential for ensuring equitable
+          service. However, as noted above, our training set excludes
+          significant subpopulations. As we continue to develop Faze, we must
+          diversify our training set and include people of all ages, genders,
+          and ethnicities.
+        </p>
+        <p>
+          In addition, all code should be open source. Open source code will
+          allow multiple providers to host authentication servers and prevent a
+          single service from controlling crucial authentication infrastructure.
+        </p>
         <h1 className="text-4xl font-bold">Conclusion</h1>
         <p>
           Our goal is to provide ‘plug and play’ authentication. Developers
