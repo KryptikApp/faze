@@ -13,7 +13,7 @@ export default function Home() {
   return (
     <div className="max-w-2xl min-h-[40vh] mx-auto mt-[12vh] rounded-xl text-lg">
       <div className="h-[20vh]" />
-      <div className="sticky top-2 bg-gradient-to-r from-green-500/90 via-sky-500/90 to-green-400/90 border-green-700 w-full rounded-xl p-2 text-center my-8 z-10">
+      <div className="sticky top-2 bg-gradient-to-r from-green-500/100 via-sky-500/90 to-green-400/100 border-green-700 w-full rounded-xl p-2 text-center my-8 z-10">
         <h1 className="text-3xl md:text-7xl font-bold">FAZE ID</h1>
         <p className="text-lg md:text-2xl ">Methods behind the magic.</p>
       </div>
