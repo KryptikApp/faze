@@ -1,4 +1,8 @@
 import Layout from "@/components/Layout";
+import "highlight.js/styles/github-dark-dimmed.css";
+import hljs from "highlight.js";
+import typescript from "highlight.js/lib/languages/typescript";
+hljs.registerLanguage("typescript", typescript);
 import "@/styles/globals.css";
 import { load, trackPageview } from "fathom-client";
 import type { AppProps } from "next/app";
@@ -18,6 +22,8 @@ export default function App({ Component, pageProps }: AppProps) {
     load("UECUDUKZ", {
       includedDomains: ["faze.kryptik.app"],
     });
+    // init highlight.js
+    hljs.initHighlightingOnLoad();
   }, []);
   return (
     <Layout>

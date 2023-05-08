@@ -30,6 +30,7 @@
     "eslint-config-next": "13.3.0",
     "fathom-client": "^3.5.0",
     "framer-motion": "^10.12.4",
+    "highlight.js": "^11.8.0",
     "hyperfuzz": "^0.0.1",
     "jose": "^4.14.4",
     "jsonwebtoken": "^9.0.0",
