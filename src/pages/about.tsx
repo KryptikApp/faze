@@ -26,13 +26,30 @@ export default function Home() {
         </p>
       </div>
       <div className="space-y-3.5">
+        <h1 className="text-4xl font-bold">Introduction</h1>
+        <p>
+          Permissionless networks allow anyone to access and update shared
+          resources. However, since anyone can join the network, there is a high
+          risk of spam. As a result, many decentralized applications rely on
+          centralized identity services that increase friction and reduce
+          privacy.
+        </p>
+        <p>
+          Faze ID is bringing privacy-preserving face authentication to the
+          browser. Faze allows anyone to authenticate with a simple face scan.
+          In addition, the client computes all face encodings, so the server can
+          never access the raw video data.
+        </p>
+        <p>
+          All code is open source, and Faze will soon be available as a one-line
+          plugin. If successful, Faze ID will help improve the Sybil-resistance
+          of permissionless networks while preserving users' privacy.
+        </p>
         <h1 className="text-4xl font-bold">Features</h1>
         <p>
           Faze ID includes several assistance features that facilitate the
           authentication experience. While most operate ‘under the hood,’ the
-          overall effect is a clean and delightful user experience. The client
-          computes all face encodings, so the server can never access the raw
-          video data.
+          overall effect is a clean and delightful user experience.
         </p>
       </div>
       {/* Face Assist */}
