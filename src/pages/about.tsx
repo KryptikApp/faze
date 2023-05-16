@@ -473,6 +473,17 @@ export default function Home() {
             integrate Faze ID with the single line of code shown below.
           </li>
         </ul>
+        {/* show  formatted code output of the function EAR */}
+        <div className="bg-gray-800 rounded-xl p-2 my-8 hover:bg-gradient-to-r hover:from-green-500/90 hover:via-sky-500/90 hover:to-green-400/90">
+          <pre className="text-white text-md">
+            <code className="typescript">
+              {`const DynamicHeader = dynamic(() => import("../../components/scan/Scanner"), {
+  ssr: false,
+  loading: () => <p className="text-center">Loading...</p>,
+});`}
+            </code>
+          </pre>
+        </div>
       </div>
     </div>
   );
